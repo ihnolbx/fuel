@@ -2836,15 +2836,15 @@ function drawWeightChart(entries, days, start){
   const W=360, H=200, PL=38, PR=10, PT=14, PB=34;
   const cW=W-PL-PR, cH=H-PT-PB;
 
-  if(!entries.length){
-    svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8b8fa8" font-size="13" font-family="Inter,sans-serif">No data in this range</text>`;
-    return;
+  let yMin, yMax;
+  if(entries.length){
+    const allLb=entries.map(e=>e.lb);
+    const minLb=Math.min(...allLb), maxLb=Math.max(...allLb);
+    const span=Math.max(maxLb-minLb,2);
+    yMin=minLb-span*0.18; yMax=maxLb+span*0.18;
+  } else {
+    yMin=110; yMax=140;
   }
-
-  const allLb = entries.map(e=>e.lb);
-  const minLb=Math.min(...allLb), maxLb=Math.max(...allLb);
-  const span=Math.max(maxLb-minLb,2);
-  const yMin=minLb-span*0.18, yMax=maxLb+span*0.18;
 
   const xp = idx => PL+(idx/(days-1))*cW;
   const yp = lb  => PT+(1-(lb-yMin)/(yMax-yMin))*cH;
