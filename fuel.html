@@ -332,6 +332,41 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .no-history-sub{font-size:12px;margin-top:6px;color:var(--txt3)}
 .wk-gen-btn{width:100%;padding:12px;border-radius:10px;border:1px dashed var(--brd);background:transparent;color:var(--txt3);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px}
 .wk-gen-btn:active{opacity:.7}
+
+/* WEIGHT SCREEN */
+#weight{padding-bottom:40px}
+#weight-history{padding-bottom:40px}
+.wt-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0}
+.wt-title{font-size:17px;font-weight:700;flex:1;text-align:center}
+.wt-tab-wrap{padding:10px 16px}
+.wt-tabs{display:flex;background:var(--surf2);border-radius:10px;padding:3px;gap:2px}
+.wt-tab-btn{flex:1;padding:6px 4px;border-radius:8px;border:none;background:transparent;color:var(--txt3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.wt-tab-btn.on{background:var(--acc);color:#fff}
+.wt-range-nav{display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px}
+.wt-range-lbl{font-size:13px;font-weight:600;color:var(--txt)}
+.wt-chart-wrap{margin:0 16px;background:var(--surf);border-radius:14px;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.wt-chart-svg{display:block;width:100%;height:auto}
+.wt-avg-card{margin:10px 16px;background:var(--surf);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.wt-avg-label{font-size:13px;color:var(--txt2)}
+.wt-avg-val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.wt-log-row{margin:10px 16px;background:var(--surf);border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:10px}
+.wt-log-date{font-size:13px;color:var(--txt2);flex:1}
+.wt-log-inp{width:80px;padding:8px 10px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-size:15px;font-weight:600;outline:none;font-family:inherit;text-align:right}
+.wt-log-inp:focus{border-color:var(--acc2)}
+.wt-log-unit{font-size:13px;color:var(--txt3)}
+.wt-log-btn{padding:8px 14px;border-radius:8px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.wt-log-btn:active{opacity:.8}
+/* weight history list */
+.wth-head{display:flex;align-items:center;gap:12px;padding:14px 16px 0;margin-bottom:16px}
+.wth-title{font-size:17px;font-weight:700}
+.wth-list{padding:0 16px}
+.wth-item{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--surf);border-radius:12px;margin-bottom:8px}
+.wth-date{font-size:13px;color:var(--txt2)}
+.wth-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.wth-delta{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px}
+.wth-delta.up{background:rgba(239,68,68,.15);color:var(--red)}
+.wth-delta.dn{background:rgba(34,197,94,.15);color:var(--pro)}
+.wth-delta.flat{background:var(--surf2);color:var(--txt3)}
 </style>
 </head>
 <body>
@@ -342,6 +377,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     <div class="header-top">
       <div class="app-title">🔥 Fuel Ihno</div>
       <div style="display:flex;gap:8px">
+        <button class="icon-btn" onclick="gotoWeight()" aria-label="Weight" title="Weight"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="3"/><path d="M8 11a4 4 0 018 0"/><line x1="12" y1="7.5" x2="14.2" y2="9.7"/></svg></button>
         <button class="icon-btn" onclick="gotoHistory()" aria-label="History" title="History" style="font-size:17px">📅</button>
         <button class="icon-btn" onclick="gotoSettings()" aria-label="Settings">⚙</button>
       </div>
@@ -378,6 +414,49 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     </div>
   </div>
   <div id="history-list"></div>
+</div>
+
+<!-- WEIGHT -->
+<div id="weight" class="screen hidden">
+  <div class="wt-head">
+    <button class="back-btn" onclick="gotoHome()">←</button>
+    <div class="wt-title">Weight</div>
+    <button class="icon-btn" onclick="gotoWeightHistory()" aria-label="Weight History" title="History"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+  </div>
+  <div class="wt-tab-wrap">
+    <div class="wt-tabs">
+      <button class="wt-tab-btn on" onclick="setWtTab('week')">Week</button>
+      <button class="wt-tab-btn" onclick="setWtTab('month')">Month</button>
+      <button class="wt-tab-btn" onclick="setWtTab('year')">Year</button>
+    </div>
+  </div>
+  <div class="wt-range-nav">
+    <button class="date-nav-btn" onclick="shiftWtWindow(-1)">‹</button>
+    <div class="wt-range-lbl" id="wt-range-lbl"></div>
+    <button class="date-nav-btn" id="wt-fwd-btn" onclick="shiftWtWindow(1)">›</button>
+  </div>
+  <div class="wt-chart-wrap" id="wt-chart-wrap">
+    <svg class="wt-chart-svg" id="wt-chart-svg" viewBox="0 0 360 200"></svg>
+  </div>
+  <div class="wt-avg-card">
+    <div class="wt-avg-label" id="wt-avg-label">Weekly avg</div>
+    <div class="wt-avg-val" id="wt-avg-val">—</div>
+  </div>
+  <div class="wt-log-row">
+    <div class="wt-log-date" id="wt-log-date">Today</div>
+    <input class="wt-log-inp" id="wt-log-inp" type="number" step="0.1" min="50" max="500" inputmode="decimal" placeholder="—">
+    <span class="wt-log-unit">lb</span>
+    <button class="wt-log-btn" onclick="logWeightEntry()">Log</button>
+  </div>
+</div>
+
+<!-- WEIGHT HISTORY -->
+<div id="weight-history" class="screen hidden">
+  <div class="wth-head">
+    <button class="back-btn" onclick="gotoWeight()">←</button>
+    <div class="wth-title">Weight History</div>
+  </div>
+  <div class="wth-list" id="wth-list"></div>
 </div>
 
 <!-- OVERLAY -->
@@ -2241,7 +2320,7 @@ function confirmAI(){
 }
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
-const SCREENS = ['home','settings','history'];
+const SCREENS = ['home','settings','history','weight','weight-history'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
 }
@@ -2652,6 +2731,260 @@ function renderWeekCard(s) {
     <div class="wk-days">${s.daysLogged} / 7 days</div>
     <div class="wk-macros">${macrosHtml}</div>
   </div>`;
+}
+
+// ─── WEIGHT TRACKING ─────────────────────────────────────────────────────────
+const WK = 'fuel_weight_';
+const WK_SEEDED = 'fuel_wt_seeded';
+const WT_SEED_VERSION = 1;
+
+function loadWeight(day){ return lsGet(WK+day, null); }
+function saveWeight(day, lb){ lsSet(WK+day, {lb}); }
+
+let wtTab = 'week';
+let wtWindowEnd = todayStr();
+
+function gotoWeight(){
+  wtWindowEnd = todayStr();
+  showScreen('weight');
+  document.querySelectorAll('.wt-tab-btn').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === wtTab));
+  renderWeightScreen();
+}
+
+function gotoWeightHistory(){
+  showScreen('weight-history');
+  renderWeightHistory();
+}
+
+function setWtTab(tab){
+  wtTab = tab;
+  wtWindowEnd = todayStr();
+  document.querySelectorAll('.wt-tab-btn').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === tab));
+  renderWeightScreen();
+}
+
+function wtWindowDays(){ return wtTab==='week'?7:wtTab==='month'?30:365; }
+
+function wtWindowStart(){ return dateShift(wtWindowEnd, -(wtWindowDays()-1)); }
+
+function shiftWtWindow(dir){
+  const shift = wtTab==='week'?7:wtTab==='month'?30:365;
+  const newEnd = dateShift(wtWindowEnd, dir*shift);
+  wtWindowEnd = newEnd > todayStr() ? todayStr() : newEnd;
+  renderWeightScreen();
+}
+
+function renderWeightScreen(){
+  const today = todayStr();
+  const start = wtWindowStart();
+  const end = wtWindowEnd;
+  const days = wtWindowDays();
+
+  // Range label
+  const sd = new Date(start+'T12:00:00'), ed = new Date(end+'T12:00:00');
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let rangeLabel;
+  if(wtTab==='year'){
+    rangeLabel = `${MN[sd.getMonth()]} ${sd.getFullYear()} – ${MN[ed.getMonth()]} ${ed.getFullYear()}`;
+  } else {
+    const fmt = d => `${MN[d.getMonth()]} ${d.getDate()}`;
+    rangeLabel = sd.getFullYear()===ed.getFullYear()
+      ? `${fmt(sd)} – ${fmt(ed)}, ${ed.getFullYear()}`
+      : `${fmt(sd)}, ${sd.getFullYear()} – ${fmt(ed)}, ${ed.getFullYear()}`;
+  }
+  document.getElementById('wt-range-lbl').textContent = rangeLabel;
+  document.getElementById('wt-fwd-btn').disabled = end >= today;
+
+  // Collect entries in window
+  const entries = [];
+  for(let i=0;i<days;i++){
+    const d = dateShift(start, i);
+    const w = loadWeight(d);
+    if(w) entries.push({date:d, lb:w.lb, idx:i});
+  }
+
+  // Average
+  const avgLabels = {week:'Weekly avg',month:'Monthly avg',year:'Yearly avg'};
+  document.getElementById('wt-avg-label').textContent = avgLabels[wtTab];
+  if(entries.length){
+    const avg = entries.reduce((s,e)=>s+e.lb,0)/entries.length;
+    document.getElementById('wt-avg-val').textContent = avg.toFixed(1)+' lb';
+  } else {
+    document.getElementById('wt-avg-val').textContent = '—';
+  }
+
+  // Log input: prefill with today's value or most recent
+  const todayEntry = loadWeight(today);
+  if(todayEntry){
+    document.getElementById('wt-log-inp').value = todayEntry.lb;
+  } else {
+    let latestLb = null;
+    for(let i=0;i<365&&latestLb===null;i++){
+      const w = loadWeight(dateShift(today,-i));
+      if(w) latestLb = w.lb;
+    }
+    document.getElementById('wt-log-inp').value = latestLb!==null ? latestLb : '';
+  }
+  const logDate = new Date(today+'T12:00:00');
+  document.getElementById('wt-log-date').textContent = `Today · ${MN[logDate.getMonth()]} ${logDate.getDate()}`;
+
+  drawWeightChart(entries, days, start);
+}
+
+function drawWeightChart(entries, days, start){
+  const svg = document.getElementById('wt-chart-svg');
+  const W=360, H=200, PL=38, PR=10, PT=14, PB=34;
+  const cW=W-PL-PR, cH=H-PT-PB;
+
+  if(!entries.length){
+    svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8b8fa8" font-size="13" font-family="Inter,sans-serif">No data in this range</text>`;
+    return;
+  }
+
+  const allLb = entries.map(e=>e.lb);
+  const minLb=Math.min(...allLb), maxLb=Math.max(...allLb);
+  const span=Math.max(maxLb-minLb,2);
+  const yMin=minLb-span*0.18, yMax=maxLb+span*0.18;
+
+  const xp = idx => PL+(idx/(days-1))*cW;
+  const yp = lb  => PT+(1-(lb-yMin)/(yMax-yMin))*cH;
+
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DN=['S','M','T','W','T','F','S'];
+  let parts=[];
+
+  // Gridlines + Y labels
+  for(let i=0;i<=4;i++){
+    const lb=yMin+(yMax-yMin)*(i/4);
+    const y=yp(lb).toFixed(1);
+    parts.push(`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#2a2d3a" stroke-width="1"/>`);
+    parts.push(`<text x="${PL-4}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#8b8fa8" font-size="10" font-family="Inter,sans-serif">${lb.toFixed(0)}</text>`);
+  }
+
+  // X labels
+  if(wtTab==='week'){
+    for(let i=0;i<days;i++){
+      const d=new Date(dateShift(start,i)+'T12:00:00');
+      const x=xp(i).toFixed(1);
+      parts.push(`<text x="${x}" y="${(H-PB+13).toFixed(1)}" text-anchor="middle" fill="#8b8fa8" font-size="10" font-family="Inter,sans-serif">${DN[d.getDay()]}</text>`);
+      parts.push(`<text x="${x}" y="${(H-PB+24).toFixed(1)}" text-anchor="middle" fill="#8b8fa8" font-size="9" font-family="Inter,sans-serif">${d.getDate()}</text>`);
+    }
+  } else if(wtTab==='month'){
+    for(let i=0;i<days;i+=5){
+      const d=new Date(dateShift(start,i)+'T12:00:00');
+      parts.push(`<text x="${xp(i).toFixed(1)}" y="${(H-PB+13).toFixed(1)}" text-anchor="middle" fill="#8b8fa8" font-size="9" font-family="Inter,sans-serif">${MN[d.getMonth()]} ${d.getDate()}</text>`);
+    }
+  } else {
+    let lastM=-1;
+    for(let i=0;i<days;i++){
+      const d=new Date(dateShift(start,i)+'T12:00:00');
+      if(d.getMonth()!==lastM){
+        lastM=d.getMonth();
+        parts.push(`<text x="${xp(i).toFixed(1)}" y="${(H-PB+13).toFixed(1)}" text-anchor="middle" fill="#8b8fa8" font-size="9" font-family="Inter,sans-serif">${MN[d.getMonth()]}</text>`);
+      }
+    }
+  }
+
+  // Line segments: find consecutive runs (adjacent day indices)
+  let solidD='', dashedD='';
+  let ri=0;
+  while(ri<entries.length){
+    let re=ri;
+    while(re+1<entries.length&&entries[re+1].idx-entries[re].idx===1) re++;
+    // Solid run from ri..re
+    if(re>ri){
+      let d=`M${xp(entries[ri].idx).toFixed(1)} ${yp(entries[ri].lb).toFixed(1)}`;
+      for(let k=ri+1;k<=re;k++) d+=` L${xp(entries[k].idx).toFixed(1)} ${yp(entries[k].lb).toFixed(1)}`;
+      solidD+=' '+d;
+    }
+    // Dashed to next run
+    if(re+1<entries.length){
+      const a=entries[re], b=entries[re+1];
+      dashedD+=` M${xp(a.idx).toFixed(1)} ${yp(a.lb).toFixed(1)} L${xp(b.idx).toFixed(1)} ${yp(b.lb).toFixed(1)}`;
+    }
+    ri=re+1;
+  }
+  if(dashedD) parts.push(`<path d="${dashedD.trim()}" stroke="#3a3d5a" stroke-width="1.5" fill="none" stroke-dasharray="4 3" stroke-linecap="round"/>`);
+  if(solidD)  parts.push(`<path d="${solidD.trim()}"  stroke="#8b5cf6" stroke-width="2"   fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
+
+  // Dots
+  for(const e of entries){
+    parts.push(`<circle cx="${xp(e.idx).toFixed(1)}" cy="${yp(e.lb).toFixed(1)}" r="4" fill="#8b5cf6" stroke="#1a1d27" stroke-width="2"/>`);
+  }
+
+  svg.innerHTML=parts.join('');
+}
+
+function logWeightEntry(){
+  const lb=parseFloat(document.getElementById('wt-log-inp').value);
+  if(isNaN(lb)||lb<50||lb>500){toast('Enter a valid weight (50–500 lb)');return;}
+  const today=todayStr();
+  const existing=loadWeight(today);
+  saveWeight(today, lb);
+  toast(existing?'Weight updated':'Weight logged!');
+  renderWeightScreen();
+}
+
+function renderWeightHistory(){
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const list=document.getElementById('wth-list');
+  const entries=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k?.startsWith(WK)){
+      const v=lsGet(k,null);
+      if(v) entries.push({date:k.replace(WK,''),lb:v.lb});
+    }
+  }
+  entries.sort((a,b)=>b.date.localeCompare(a.date));
+  if(!entries.length){
+    list.innerHTML='<div class="no-history"><div class="no-history-msg">No weight entries yet.</div></div>';
+    return;
+  }
+  let html='';
+  for(let i=0;i<entries.length;i++){
+    const {date,lb}=entries[i];
+    const [y,m,d]=date.split('-').map(Number);
+    const dateLabel=`${MN[m-1]} ${d}, ${y}`;
+    let deltaHtml='';
+    if(i<entries.length-1){
+      const prev=entries[i+1].lb;
+      const delta=+(lb-prev).toFixed(1);
+      if(Math.abs(delta)<0.05) deltaHtml=`<span class="wth-delta flat">—</span>`;
+      else if(delta>0) deltaHtml=`<span class="wth-delta up">▲ ${delta.toFixed(1)}</span>`;
+      else deltaHtml=`<span class="wth-delta dn">▼ ${Math.abs(delta).toFixed(1)}</span>`;
+    }
+    html+=`<div class="wth-item"><div class="wth-date">${dateLabel}</div><div style="display:flex;align-items:center;gap:8px"><div class="wth-val">${lb.toFixed(1)} lb</div>${deltaHtml}</div></div>`;
+  }
+  list.innerHTML=html;
+}
+
+// Touch-pan on chart shifts the window (left swipe = forward in time, right = back)
+function initWeightSwipe(){
+  const wrap=document.getElementById('wt-chart-wrap');
+  let sx=0;
+  wrap.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+  wrap.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    if(Math.abs(dx)<40)return;
+    shiftWtWindow(dx>0?-1:1);
+  },{passive:true});
+}
+
+// ─── WEIGHT SEED ─────────────────────────────────────────────────────────────
+// Source: Carbon Diet Coach export → Weights sheet. bodyWeight column is in kg;
+// converted to lb (×2.20462, rounded to 1dp). 549 unique dates, 2021-05-23 → 2026-06-01.
+// Written once (WT_SEED_VERSION=1). Skips any date already in localStorage.
+const WEIGHT_SEED_DATA={"2021-05-23":114.4,"2021-05-24":114.8,"2021-05-25":115.0,"2021-05-26":114.6,"2021-05-27":115.4,"2021-05-30":115.4,"2021-05-31":114.4,"2021-06-01":115.0,"2021-06-02":114.0,"2021-06-03":114.4,"2021-06-04":114.6,"2021-06-05":115.0,"2021-06-06":115.0,"2021-06-07":114.6,"2021-06-08":115.0,"2021-06-09":115.2,"2021-06-10":115.0,"2021-06-11":115.0,"2021-06-12":115.2,"2021-06-13":115.0,"2021-06-14":114.8,"2021-06-15":114.6,"2021-06-16":114.4,"2021-06-17":114.6,"2021-06-18":114.2,"2021-06-19":114.8,"2021-06-20":115.2,"2021-06-21":115.4,"2021-06-22":114.6,"2021-06-23":114.8,"2021-06-24":115.4,"2021-06-25":114.6,"2021-06-26":115.0,"2021-06-27":115.4,"2021-06-28":115.0,"2021-06-29":115.2,"2021-06-30":114.8,"2021-07-01":115.4,"2021-07-02":115.2,"2021-07-04":114.8,"2021-07-05":115.8,"2021-07-06":115.8,"2021-07-07":115.0,"2021-07-08":115.0,"2021-07-09":115.2,"2021-07-10":115.6,"2021-07-11":115.4,"2021-07-12":114.8,"2021-07-13":115.0,"2021-07-14":114.8,"2021-07-15":115.0,"2021-07-16":114.4,"2021-07-17":114.8,"2021-07-18":115.0,"2021-07-19":115.0,"2021-07-20":115.4,"2021-07-21":115.6,"2021-07-22":116.2,"2021-07-23":116.0,"2021-07-24":116.2,"2021-07-25":117.0,"2021-07-26":116.0,"2021-07-27":116.6,"2021-07-28":117.2,"2021-07-29":117.2,"2021-07-30":117.0,"2021-07-31":117.0,"2021-08-01":116.8,"2021-08-02":116.6,"2021-08-03":117.0,"2021-08-04":117.2,"2021-08-09":117.4,"2021-08-10":117.6,"2021-08-11":117.8,"2021-08-13":117.2,"2021-08-16":117.4,"2021-08-17":117.4,"2021-08-18":117.4,"2021-08-19":117.8,"2021-08-20":117.0,"2021-08-21":117.4,"2021-08-22":118.4,"2021-08-23":118.0,"2021-08-24":117.2,"2021-08-25":117.8,"2021-08-26":117.2,"2021-08-27":117.2,"2021-09-05":119.6,"2021-09-06":119.0,"2021-09-07":118.8,"2021-09-08":118.8,"2021-09-09":118.2,"2021-09-10":118.8,"2021-09-11":119.0,"2021-09-12":119.6,"2021-09-13":120.0,"2021-09-14":119.8,"2021-09-15":119.8,"2021-09-16":119.6,"2021-09-17":119.4,"2021-09-18":119.2,"2021-09-19":119.6,"2021-09-20":120.6,"2021-09-21":121.6,"2021-09-22":121.6,"2021-09-23":121.6,"2021-09-24":121.4,"2021-09-25":121.6,"2021-09-26":121.0,"2021-09-27":121.0,"2021-09-28":120.4,"2021-09-29":121.0,"2021-09-30":121.3,"2021-10-01":121.2,"2021-10-02":121.3,"2021-10-03":120.4,"2021-10-04":119.9,"2021-10-05":119.6,"2021-10-06":119.9,"2021-10-07":120.0,"2021-10-08":119.9,"2021-10-09":119.8,"2021-10-10":119.3,"2021-10-11":119.4,"2021-10-12":119.4,"2021-10-13":119.6,"2021-10-15":120.2,"2021-10-17":119.6,"2021-10-18":119.3,"2021-10-19":118.8,"2021-10-20":118.7,"2021-10-21":118.7,"2021-10-22":118.4,"2021-10-23":118.4,"2021-10-24":118.0,"2021-10-25":118.2,"2021-10-26":118.2,"2021-10-27":118.0,"2021-10-28":119.0,"2021-11-02":117.7,"2021-11-04":118.6,"2021-11-05":118.4,"2021-11-06":118.2,"2021-11-07":117.8,"2021-11-08":117.8,"2021-11-09":117.8,"2021-11-11":118.6,"2021-11-13":119.2,"2021-11-14":119.6,"2021-11-15":120.4,"2021-11-18":120.4,"2021-11-19":120.2,"2021-11-20":120.4,"2021-11-21":120.4,"2021-11-22":120.4,"2021-11-23":121.2,"2021-11-25":120.0,"2021-11-27":121.0,"2021-11-28":121.0,"2021-11-29":120.4,"2021-11-30":120.8,"2021-12-01":120.8,"2021-12-02":120.8,"2021-12-04":121.0,"2021-12-05":121.0,"2021-12-06":120.4,"2021-12-07":120.4,"2021-12-08":121.0,"2021-12-09":120.4,"2021-12-10":120.2,"2021-12-11":120.4,"2021-12-12":120.4,"2021-12-13":121.0,"2021-12-14":121.2,"2021-12-15":121.6,"2021-12-16":121.6,"2021-12-17":121.2,"2021-12-19":121.8,"2021-12-23":122.4,"2021-12-24":121.8,"2021-12-26":122.4,"2021-12-27":122.4,"2021-12-28":122.2,"2021-12-29":121.4,"2021-12-31":122.0,"2022-01-01":122.0,"2022-01-02":122.8,"2022-01-04":123.0,"2022-01-05":122.8,"2022-01-06":123.6,"2022-01-08":123.2,"2022-01-09":122.4,"2022-01-10":123.2,"2022-01-11":123.4,"2022-01-13":123.8,"2022-01-15":124.4,"2022-01-16":123.2,"2022-01-18":123.0,"2022-01-19":123.4,"2022-01-22":123.8,"2022-01-24":124.2,"2022-01-25":123.0,"2022-01-26":123.0,"2022-01-27":123.2,"2022-01-28":123.8,"2022-01-29":123.6,"2022-02-04":124.8,"2022-02-05":124.4,"2022-02-06":124.4,"2022-02-08":124.4,"2022-02-12":124.2,"2022-02-14":124.2,"2022-02-15":124.2,"2022-02-16":124.0,"2022-02-18":123.8,"2022-02-19":123.6,"2022-02-20":124.0,"2022-02-21":123.2,"2022-02-22":122.8,"2022-02-23":122.8,"2022-02-26":122.8,"2022-02-27":122.6,"2022-02-28":122.6,"2022-03-01":122.2,"2022-03-03":122.6,"2022-03-05":122.2,"2022-03-06":122.0,"2022-03-07":122.8,"2022-03-09":122.0,"2022-03-10":122.2,"2022-03-12":121.8,"2022-03-13":121.8,"2022-03-14":121.6,"2022-03-15":121.0,"2022-03-16":120.8,"2022-03-17":120.6,"2022-03-19":120.2,"2022-03-20":120.6,"2022-03-22":120.6,"2022-03-23":120.6,"2022-03-25":121.2,"2022-03-26":120.8,"2022-03-27":119.4,"2022-03-30":120.6,"2022-03-31":120.4,"2022-04-01":120.0,"2022-04-02":119.4,"2022-04-03":119.8,"2022-04-04":119.8,"2022-04-07":119.8,"2022-04-08":119.8,"2022-04-09":119.6,"2022-04-10":119.6,"2022-04-11":119.2,"2022-04-12":119.2,"2022-04-13":119.4,"2022-04-14":119.2,"2022-04-15":118.8,"2022-04-16":118.8,"2022-04-18":119.0,"2022-04-19":118.2,"2022-04-20":118.4,"2022-04-22":118.8,"2022-04-24":118.8,"2022-04-25":119.0,"2022-04-26":119.0,"2022-04-27":119.0,"2022-04-28":119.2,"2022-04-30":118.2,"2022-05-01":118.2,"2022-05-02":119.4,"2022-05-03":119.4,"2022-05-05":119.0,"2022-05-07":118.2,"2022-05-08":118.6,"2022-05-09":119.0,"2022-05-15":119.0,"2022-05-16":119.0,"2022-05-17":119.0,"2022-05-18":119.2,"2022-05-20":119.2,"2022-05-21":119.2,"2022-05-23":119.0,"2022-05-24":118.8,"2022-05-25":119.0,"2022-05-26":119.0,"2022-05-27":119.0,"2022-05-28":119.0,"2022-05-30":119.0,"2022-05-31":119.0,"2022-06-01":119.0,"2022-06-02":119.4,"2022-06-03":119.6,"2022-06-06":119.2,"2022-06-08":119.8,"2022-06-11":119.4,"2022-06-13":120.8,"2022-06-15":120.2,"2022-06-17":120.0,"2022-06-20":120.4,"2022-06-21":120.4,"2022-06-23":120.8,"2022-06-26":121.2,"2022-06-27":121.0,"2022-06-28":120.8,"2022-06-29":120.0,"2022-07-01":120.0,"2022-07-05":121.2,"2022-07-06":120.6,"2022-07-09":120.8,"2022-07-11":121.4,"2022-07-12":121.4,"2022-07-13":121.0,"2022-07-16":120.8,"2022-07-18":121.4,"2022-07-20":121.4,"2022-07-22":122.0,"2022-07-25":121.4,"2022-07-26":121.4,"2022-07-27":120.8,"2022-07-30":121.4,"2022-08-01":121.8,"2022-08-03":122.4,"2022-08-05":122.2,"2022-08-06":121.8,"2022-08-08":122.2,"2022-08-11":122.6,"2022-08-12":122.2,"2022-08-14":122.4,"2022-08-15":123.0,"2022-08-16":122.8,"2022-08-17":122.0,"2022-08-18":122.4,"2022-08-19":121.6,"2022-08-20":121.2,"2022-08-21":121.6,"2022-08-22":121.2,"2022-08-23":121.0,"2022-08-24":121.0,"2022-08-25":121.2,"2022-08-27":121.0,"2022-08-28":121.2,"2022-08-29":121.2,"2022-08-31":120.8,"2022-09-01":120.8,"2022-09-02":120.2,"2022-09-05":120.8,"2022-09-06":121.2,"2022-09-09":121.0,"2022-09-11":121.0,"2022-09-19":121.6,"2022-09-21":121.6,"2022-09-22":121.4,"2022-09-23":121.6,"2022-09-26":121.5,"2022-09-27":121.4,"2022-09-29":121.4,"2022-09-30":121.4,"2022-10-01":120.6,"2022-10-02":121.2,"2022-10-03":121.4,"2022-10-08":121.5,"2022-10-12":121.0,"2022-10-13":121.0,"2022-10-16":121.6,"2022-10-24":121.0,"2022-10-26":122.0,"2022-10-29":121.8,"2022-10-30":121.6,"2022-10-31":121.7,"2022-11-03":122.2,"2022-11-04":122.0,"2022-11-05":122.2,"2022-11-06":122.4,"2022-11-07":122.2,"2022-11-11":122.4,"2022-11-16":123.2,"2022-11-20":122.8,"2022-11-21":122.6,"2022-11-28":124.8,"2022-11-29":124.4,"2022-12-05":124.6,"2022-12-08":124.2,"2022-12-10":125.0,"2022-12-12":126.0,"2022-12-20":126.2,"2022-12-28":124.0,"2022-12-29":125.6,"2022-12-31":125.6,"2023-01-02":125.6,"2023-01-03":125.0,"2023-01-04":124.6,"2023-01-07":124.6,"2023-01-08":124.8,"2023-01-09":124.2,"2023-01-11":123.8,"2023-01-12":123.8,"2023-01-14":124.2,"2023-01-15":123.8,"2023-01-16":123.4,"2023-01-17":123.2,"2023-01-18":123.2,"2023-01-30":122.6,"2023-01-31":122.6,"2023-02-06":124.2,"2023-02-13":125.6,"2023-02-20":126.0,"2023-02-27":125.0,"2023-03-06":124.4,"2023-03-13":125.6,"2023-03-20":125.8,"2023-03-27":126.0,"2023-04-03":126.4,"2023-04-10":126.2,"2023-04-17":126.3,"2023-04-24":126.6,"2023-05-02":127.0,"2023-05-08":126.0,"2023-05-15":126.6,"2023-05-22":127.6,"2023-05-30":127.2,"2023-06-05":127.8,"2023-06-12":128.6,"2023-06-19":128.8,"2023-06-26":128.8,"2023-07-03":128.6,"2023-07-10":127.6,"2023-07-17":127.4,"2023-07-24":127.6,"2023-07-31":127.4,"2023-08-07":127.0,"2023-08-14":128.4,"2023-08-22":128.0,"2023-08-28":127.8,"2023-09-04":128.4,"2023-09-11":128.3,"2023-09-18":128.4,"2023-09-30":128.6,"2023-10-09":127.4,"2023-10-16":128.0,"2023-10-23":126.2,"2023-10-30":125.4,"2023-11-07":126.4,"2023-11-13":125.2,"2023-11-20":125.0,"2023-11-27":126.6,"2023-12-06":127.8,"2023-12-11":126.8,"2023-12-20":128.0,"2023-12-26":127.2,"2024-01-01":128.2,"2024-01-08":128.6,"2024-01-15":128.4,"2024-01-22":127.2,"2024-01-29":126.2,"2024-02-05":125.2,"2024-02-12":125.6,"2024-02-19":126.4,"2024-02-26":126.6,"2024-03-04":126.4,"2024-03-11":127.0,"2024-03-20":127.6,"2024-03-25":127.8,"2024-03-31":127.8,"2024-04-08":128.0,"2024-04-15":127.8,"2024-04-22":128.2,"2024-05-01":128.6,"2024-05-06":128.4,"2024-05-15":129.2,"2024-05-20":128.6,"2024-05-27":129.2,"2024-06-03":130.4,"2024-06-10":126.6,"2024-06-17":130.2,"2024-06-24":130.0,"2024-07-01":131.2,"2024-07-09":131.0,"2024-07-15":131.6,"2024-07-22":132.4,"2024-07-29":130.0,"2024-08-05":129.6,"2024-08-10":128.0,"2024-08-11":128.2,"2024-08-19":128.2,"2024-08-26":128.0,"2024-09-04":129.0,"2024-09-09":127.8,"2024-09-16":128.0,"2024-09-23":127.2,"2024-10-01":130.2,"2024-10-07":128.0,"2024-10-14":128.6,"2024-11-25":130.8,"2024-12-02":131.2,"2024-12-10":130.0,"2024-12-16":130.8,"2024-12-23":131.6,"2024-12-30":131.4,"2025-01-06":131.8,"2025-01-17":131.6,"2025-01-27":131.8,"2025-02-04":132.0,"2025-02-16":132.6,"2025-02-23":129.6,"2025-03-02":128.6,"2025-03-09":128.8,"2025-03-16":127.6,"2025-03-23":128.2,"2025-03-30":128.0,"2025-04-06":127.8,"2025-04-13":127.6,"2025-04-20":127.8,"2025-04-27":128.0,"2025-05-04":127.6,"2025-05-11":128.8,"2025-05-18":128.0,"2025-05-25":127.4,"2025-06-01":128.8,"2025-06-09":128.0,"2025-06-17":128.2,"2025-06-22":126.8,"2025-07-02":127.8,"2025-07-07":128.6,"2025-07-13":127.4,"2025-07-20":127.8,"2025-07-27":128.4,"2025-08-03":128.4,"2025-08-10":127.6,"2025-08-22":128.4,"2025-08-31":128.0,"2025-09-10":129.2,"2025-09-23":127.4,"2025-10-03":126.8,"2025-10-12":127.0,"2025-10-22":127.2,"2025-11-02":127.6,"2025-11-09":126.4,"2025-11-17":127.6,"2025-11-25":128.0,"2025-12-24":130.2,"2025-12-31":129.2,"2026-01-06":127.4,"2026-01-14":127.4,"2026-01-20":128.2,"2026-01-29":128.0,"2026-02-10":125.0,"2026-03-09":123.0,"2026-06-01":117.6};
+
+function seedWeightsIfNeeded(){
+  if(parseInt(localStorage.getItem(WK_SEEDED)||'0')>=WT_SEED_VERSION)return;
+  for(const [date,lb] of Object.entries(WEIGHT_SEED_DATA)){
+    const key=WK+date;
+    if(localStorage.getItem(key)!==null)continue; // manual entry wins
+    lsSet(key,{lb});
+  }
+  localStorage.setItem(WK_SEEDED,String(WT_SEED_VERSION));
 }
 
 // ─── SEED HISTORY ────────────────────────────────────────────────────────────
@@ -3146,9 +3479,11 @@ function performImport(mode){
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 seedHistoryIfNeeded();
+seedWeightsIfNeeded();
 autoSummarize();
 renderHome();
 initSwipeDismiss();
+initWeightSwipe();
 </script>
 </body>
 </html>
