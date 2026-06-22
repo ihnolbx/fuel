@@ -613,7 +613,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
   <div class="sheet-handle"></div>
   <div class="modal-head">
     <button class="sheet-x" onclick="closeModal('cp-modal')">✕</button>
-    <span class="modal-title">Copy meal</span>
+    <span class="modal-title" id="cp-modal-title">Copy meal</span>
     <button class="modal-action" onclick="doCopyMeal()">Copy</button>
   </div>
   <div class="modal-body" id="cp-body"></div>
@@ -815,10 +815,12 @@ function loadActiveProfile(){return localStorage.getItem(SK.profile)||'bulk';}
 function saveActiveProfile(k){localStorage.setItem(SK.profile,k);}
 function loadDb(){return lsGet(SK.db, INITIAL_FOODS.map(f=>({...f})));}
 function saveDb(db){lsSet(SK.db,db);}
-function loadLog(day){return lsGet(SK.log+day,{meal1:[],meal2:[],meal3:[],meal4:[],meal5:[]});}
+function loadLog(day){const l=lsGet(SK.log+day,{meal1:[],meal2:[],meal3:[],meal4:[],meal5:[],meal6:[]});if(!l.meal6)l.meal6=[];return l;}
 function saveLog(day,log){lsSet(SK.log+day,log);}
 function loadApiKey(){return localStorage.getItem(SK.apiKey)||'';}
 function saveApiKey(k){localStorage.setItem(SK.apiKey,k);}
+function getMealNames(){return lsGet('fuel_meal_names',{meal1:'Meal 1',meal2:'Meal 2',meal3:'Meal 3',meal4:'Meal 4',meal5:'Meal 5',meal6:'Meal 6'});}
+function saveMealNames(n){lsSet('fuel_meal_names',n);}
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let profiles = loadProfiles();
@@ -848,8 +850,9 @@ let recording = false;
 let menuMeal = 1;
 let qaTargetMeal = 1;
 let cpSrcMeal = 1;
+let cpSrcMode = 'meal'; // 'meal' | 'day'
 let cpDestMeal = 1;
-let cpDestDate = todayStr();
+let cpDestDates = new Set([todayStr()]);
 let cpCalViewYear = new Date().getFullYear();
 let cpCalViewMonth = new Date().getMonth();
 let cpChecked = [];
@@ -871,7 +874,7 @@ function mealTotals(n){
 }
 function dayTotals(){
   const t={calories:0,protein:0,carbs:0,fat:0};
-  for(let i=1;i<=5;i++){const m=mealTotals(i);t.calories+=m.calories;t.protein+=m.protein;t.carbs+=m.carbs;t.fat+=m.fat;}
+  for(let i=1;i<=6;i++){const m=mealTotals(i);t.calories+=m.calories;t.protein+=m.protein;t.carbs+=m.carbs;t.fat+=m.fat;}
   return t;
 }
 function activeProfile(){return profiles[activeKey];}
@@ -1147,7 +1150,7 @@ function buildCombinedFoods() {
     const date = k.replace('fuel_log_', '');
     let dayLog;
     try { dayLog = JSON.parse(localStorage.getItem(k)); } catch { continue; }
-    for (let m = 1; m <= 5; m++) {
+    for (let m = 1; m <= 6; m++) {
       (dayLog[`meal${m}`] || []).forEach(e => {
         const nameKey = (e.name || '').toLowerCase().trim();
         if (!nameKey) return;
@@ -1221,7 +1224,10 @@ function renderDateNav(){
   document.getElementById('date-nav').innerHTML=
     `<button class="date-nav-btn" onclick="navDay(-1)">‹</button>
      <button class="date-nav-label" onclick="toggleCal()">${dateNavLabel(viewDate)}</button>
-     <button class="date-nav-btn" onclick="navDay(1)"${atMax?' disabled':''}>›</button>`;
+     <div style="display:flex;align-items:center;gap:2px">
+       <button class="date-nav-btn" onclick="navDay(1)"${atMax?' disabled':''}>›</button>
+       <button class="date-nav-btn" onclick="openCopyDay()" title="Copy day" style="font-size:15px">📋</button>
+     </div>`;
 }
 
 function navDay(delta){
@@ -1323,7 +1329,7 @@ function renderMacroBars(){
 
 function renderMeals(){
   document.getElementById('meals-container').innerHTML=
-    Array.from({length:5},(_,i)=>renderMealCard(i+1)).join('');
+    Array.from({length:6},(_,i)=>renderMealCard(i+1)).join('');
   attachSwipe();
 }
 
@@ -1343,10 +1349,11 @@ function renderMealCard(n){
   const tot=mealTotals(n);
   const hasFood=entries.length>0;
   const sub=`${r0(tot.calories)} Cal, ${r1(tot.protein)}p, ${r1(tot.carbs)}c, ${r1(tot.fat)}f`;
+  const mealName=getMealNames()[`meal${n}`]||`Meal ${n}`;
   return `<div class="meal-card${hasFood?' expanded':''}" id="mc${n}">
     <div class="meal-header" onclick="toggleMeal(${n})">
       <div class="meal-hdr-left">
-        <div class="meal-title">Meal ${n}</div>
+        <div class="meal-title">${esc(mealName)}</div>
         <div class="meal-sub-line">${sub}</div>
       </div>
       <div class="meal-hdr-right">
@@ -1770,9 +1777,10 @@ function switchTab(tab){
 }
 
 function renderMealSel(containerId,active,cb){
-  document.getElementById(containerId).innerHTML=[1,2,3,4,5].map(i=>
+  const names=getMealNames();
+  document.getElementById(containerId).innerHTML=[1,2,3,4,5,6].map(i=>
     `<button class="ms-btn${active===i?' on':''}" data-meal="${i}" data-cb="${containerId}"
-      onclick="pickMeal(this,${i},'${containerId}')">Meal ${i}</button>`
+      onclick="pickMeal(this,${i},'${containerId}')">${esc(names[`meal${i}`]||`Meal ${i}`)}</button>`
   ).join('');
 }
 const mealCbs={};
@@ -2085,7 +2093,7 @@ function renderSvSheet(){
     `<div id="sv-macros" class="sv-macros">${svMacrosHtml(m)}</div>`+
     `<div class="meal-sel-lbl">Add to Meal</div>`+
     `<div class="meal-sel" id="sv-meal-sel">`+
-      [1,2,3,4,5].map(i=>`<button class="ms-btn${svMeal===i?' on':''}" onclick="setSvMeal(${i})">Meal ${i}</button>`).join('')+
+      (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${svMeal===i?' on':''}" onclick="setSvMeal(${i})">${esc(n[`meal${i}`]||`Meal ${i}`)}</button>`).join('');})()+
     `</div>`+
     `<button class="btn btn-p" onclick="confirmSv()">Add to Log</button>`;
 }
@@ -2281,7 +2289,7 @@ function renderAIConfirm(){
     </div>`;
   }).join('');
   document.getElementById('aic-meal-sel').innerHTML=
-    [1,2,3,4,5].map(i=>`<button class="ms-btn${aiMeal===i?' on':''}" onclick="setAIMeal(${i})">Meal ${i}</button>`).join('');
+    (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${aiMeal===i?' on':''}" onclick="setAIMeal(${i})">${esc(n[`meal${i}`]||`Meal ${i}`)}</button>`).join('');})();
 }
 
 function rmAI(idx){aiItems.splice(idx,1);renderAIConfirm();}
@@ -2315,7 +2323,7 @@ function confirmAI(){
   saveLog(viewDate,log);
   renderHome();
   closeSheet('aic-sheet');
-  toast(`Added ${aiItems.length} item${aiItems.length!==1?'s':''} to Meal ${aiMeal}`);
+  toast(`Added ${aiItems.length} item${aiItems.length!==1?'s':''} to ${getMealNames()[`meal${aiMeal}`]||'Meal '+aiMeal}`);
   aiItems=[];
 }
 
@@ -2363,12 +2371,12 @@ function formatDateFull(dateStr) {
 }
 
 function hasAnyFood(dayLog) {
-  return [1,2,3,4,5].some(n => (dayLog[`meal${n}`]||[]).length > 0);
+  return [1,2,3,4,5,6].some(n => (dayLog[`meal${n}`]||[]).length > 0);
 }
 
 function getDayLogTotals(dayLog) {
   const t = {calories:0,protein:0,carbs:0,fat:0};
-  for (let i=1;i<=5;i++) {
+  for (let i=1;i<=6;i++) {
     (dayLog[`meal${i}`]||[]).forEach(e=>{
       t.calories+=e.calories;t.protein+=e.protein;t.carbs+=e.carbs;t.fat+=e.fat;
     });
@@ -3020,15 +3028,27 @@ let calViewMonth = new Date().getMonth();
 // ─── MEAL MENU ────────────────────────────────────────────────────────────────
 function openMealMenu(n){
   menuMeal = n;
+  const mName = getMealNames()[`meal${n}`]||`Meal ${n}`;
   document.getElementById('meal-menu-body').innerHTML =
-    `<div class="meal-menu-title">Meal ${n}</div>`+
-    `<button class="meal-menu-opt" onclick="closeSheet('meal-menu-sheet');openCopyMeal(${n})"><span class="meal-menu-ico">📋</span>Copy Meal ${n}</button>`+
-    `<button class="meal-menu-opt" style="color:var(--red)" onclick="confirmDeleteMeal(${n})"><span class="meal-menu-ico">🗑️</span>Delete Meal ${n}</button>`+
+    `<div class="meal-menu-title">${esc(mName)}</div>`+
+    `<button class="meal-menu-opt" onclick="closeSheet('meal-menu-sheet');openCopyMeal(${n})"><span class="meal-menu-ico">📋</span>Copy ${esc(mName)}</button>`+
+    `<button class="meal-menu-opt" onclick="closeSheet('meal-menu-sheet');renameMeal(${n})"><span class="meal-menu-ico">✏️</span>Rename Meal</button>`+
+    `<button class="meal-menu-opt" style="color:var(--red)" onclick="confirmDeleteMeal(${n})"><span class="meal-menu-ico">🗑️</span>Delete ${esc(mName)}</button>`+
     `<button class="meal-menu-opt" onclick="closeSheet('meal-menu-sheet');openQuickAdd(${n})"><span class="meal-menu-ico">⚡</span>Quick Add</button>`;
   openSheet('meal-menu-sheet');
 }
+function renameMeal(n){
+  const names=getMealNames();
+  const cur=names[`meal${n}`]||`Meal ${n}`;
+  const val=prompt(`Rename "${cur}":`,cur);
+  if(val===null) return;
+  names[`meal${n}`]=val.trim()||cur;
+  saveMealNames(names);
+  renderHome();
+}
 function confirmDeleteMeal(n){
-  if(!confirm(`Delete all items from Meal ${n}?`)) return;
+  const mName=getMealNames()[`meal${n}`]||`Meal ${n}`;
+  if(!confirm(`Delete all items from ${mName}?`)) return;
   log[`meal${n}`]=[];
   saveLog(viewDate,log);
   closeSheet('meal-menu-sheet');
@@ -3053,39 +3073,80 @@ function doQuickAddModal(){
   saveLog(viewDate,log);
   closeModal('qa-modal');
   renderHome();
-  toast(`Added to Meal ${qaTargetMeal}`);
+  toast(`Added to ${getMealNames()[`meal${qaTargetMeal}`]||'Meal '+qaTargetMeal}`);
 }
 
 // ─── COPY MEAL MODAL ──────────────────────────────────────────────────────────
 function openCopyMeal(n){
+  cpSrcMode = 'meal';
   cpSrcMeal = n;
   cpDestMeal = n;
-  cpDestDate = todayStr();
+  cpDestDates = new Set([todayStr()]);
   const d = new Date();
   cpCalViewYear = d.getFullYear();
   cpCalViewMonth = d.getMonth();
   cpChecked = mealEntries(n).map(()=>true);
+  document.getElementById('cp-modal-title').textContent = 'Copy meal';
+  renderCpBody();
+  openModal('cp-modal');
+}
+function openCopyDay(){
+  cpSrcMode = 'day';
+  cpDestDates = new Set([todayStr()]);
+  const d = new Date();
+  cpCalViewYear = d.getFullYear();
+  cpCalViewMonth = d.getMonth();
+  document.getElementById('cp-modal-title').textContent = 'Copy day';
   renderCpBody();
   openModal('cp-modal');
 }
 function renderCpBody(){
-  const entries = mealEntries(cpSrcMeal);
-  const mealOpts = [1,2,3,4,5].map(i=>`<option value="${i}"${i===cpDestMeal?' selected':''}>Meal ${i}</option>`).join('');
-  const itemRows = entries.map((e,i)=>{
-    const nm  = e.brand ? `${esc(e.name)} (${esc(e.brand)})` : esc(e.name);
-    const det = `${servingLabel(e)} · ${r0(e.calories)} Cal, ${r1(e.protein)}p ${r1(e.carbs)}c ${r1(e.fat)}f`;
-    return `<label class="cp-item"><input type="checkbox" class="cp-check" data-idx="${i}"${cpChecked[i]?' checked':''}>`+
-           `<div class="cp-item-info"><div class="cp-item-name">${nm}</div><div class="cp-item-detail">${det}</div></div></label>`;
-  }).join('');
-  document.getElementById('cp-body').innerHTML =
-    `<div class="cp-block">`+
-      `<div class="cp-row"><span class="cp-row-lbl">Copy from</span><span class="cp-row-val">${dateNavLabel(viewDate)}</span></div>`+
-      `<div class="cp-row"><span class="cp-row-lbl">Copy to</span><div class="cp-row-val"><select class="cp-meal-sel" id="cp-dest-meal" onchange="cpDestMeal=+this.value">${mealOpts}</select><span style="color:var(--txt3);font-size:11px;pointer-events:none">▼</span></div></div>`+
-    `</div>`+
-    `<div id="cp-cal-wrap"></div>`+
-    (entries.length
-      ? `<div><div class="cp-section-title">Items to copy</div><div class="cp-items">${itemRows}</div></div>`
-      : `<div style="color:var(--txt3);font-size:13px;text-align:center;padding:24px 0">No items in this meal</div>`);
+  const names = getMealNames();
+  const mealOpts = [1,2,3,4,5,6].map(i=>`<option value="${i}"${i===cpDestMeal?' selected':''}>${esc(names[`meal${i}`]||`Meal ${i}`)}</option>`).join('');
+  let itemsHtml = '';
+  if(cpSrcMode==='meal'){
+    const entries = mealEntries(cpSrcMeal);
+    const mName = names[`meal${cpSrcMeal}`]||`Meal ${cpSrcMeal}`;
+    const itemRows = entries.map((e,i)=>{
+      const nm  = e.brand ? `${esc(e.name)} (${esc(e.brand)})` : esc(e.name);
+      const det = `${servingLabel(e)} · ${r0(e.calories)} Cal, ${r1(e.protein)}p ${r1(e.carbs)}c ${r1(e.fat)}f`;
+      return `<label class="cp-item"><input type="checkbox" class="cp-check" data-meal="${cpSrcMeal}" data-idx="${i}"${cpChecked[i]?' checked':''}>`+
+             `<div class="cp-item-info"><div class="cp-item-name">${nm}</div><div class="cp-item-detail">${det}</div></div></label>`;
+    }).join('');
+    document.getElementById('cp-body').innerHTML =
+      `<div class="cp-block">`+
+        `<div class="cp-row"><span class="cp-row-lbl">Copy from</span><span class="cp-row-val">${esc(mName)} · ${dateNavLabel(viewDate)}</span></div>`+
+        `<div class="cp-row"><span class="cp-row-lbl">Copy to</span><div class="cp-row-val"><select class="cp-meal-sel" id="cp-dest-meal" onchange="cpDestMeal=+this.value">${mealOpts}</select><span style="color:var(--txt3);font-size:11px;pointer-events:none">▼</span></div></div>`+
+      `</div>`+
+      `<div id="cp-cal-wrap"></div>`+
+      (entries.length
+        ? `<div><div class="cp-section-title">Items to copy</div><div class="cp-items">${itemRows}</div></div>`
+        : `<div style="color:var(--txt3);font-size:13px;text-align:center;padding:24px 0">No items in this meal</div>`);
+  } else {
+    let anyItems = false;
+    let mealSections = '';
+    for(let m=1;m<=6;m++){
+      const entries = log[`meal${m}`]||[];
+      if(!entries.length) continue;
+      anyItems = true;
+      const mName = names[`meal${m}`]||`Meal ${m}`;
+      const rows = entries.map((e,i)=>{
+        const nm  = e.brand ? `${esc(e.name)} (${esc(e.brand)})` : esc(e.name);
+        const det = `${servingLabel(e)} · ${r0(e.calories)} Cal, ${r1(e.protein)}p ${r1(e.carbs)}c ${r1(e.fat)}f`;
+        return `<label class="cp-item"><input type="checkbox" class="cp-check" data-meal="${m}" data-idx="${i}" checked>`+
+               `<div class="cp-item-info"><div class="cp-item-name">${nm}</div><div class="cp-item-detail">${det}</div></div></label>`;
+      }).join('');
+      mealSections += `<div class="cp-section-title">${esc(mName)}</div><div class="cp-items">${rows}</div>`;
+    }
+    document.getElementById('cp-body').innerHTML =
+      `<div class="cp-block">`+
+        `<div class="cp-row"><span class="cp-row-lbl">Copy from</span><span class="cp-row-val">All meals · ${dateNavLabel(viewDate)}</span></div>`+
+      `</div>`+
+      `<div id="cp-cal-wrap"></div>`+
+      (anyItems
+        ? `<div>${mealSections}</div>`
+        : `<div style="color:var(--txt3);font-size:13px;text-align:center;padding:24px 0">No items today</div>`);
+  }
   renderCpCal();
 }
 function renderCpCal(){
@@ -3099,7 +3160,7 @@ function renderCpCal(){
   let cells = '<div></div>'.repeat(firstDow);
   for(let day=1; day<=daysInMonth; day++){
     const ds = `${cpCalViewYear}-${String(cpCalViewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const isSel   = ds===cpDestDate;
+    const isSel   = cpDestDates.has(ds);
     const isToday = ds===today;
     const isFut   = ds>maxDs;
     const hasLog  = logged.has(ds);
@@ -3132,25 +3193,70 @@ function cpCalNavMonth(delta,ev){
   renderCpCal();
 }
 function cpSelectDate(ds){
-  cpDestDate = ds;
+  if(cpDestDates.has(ds)) cpDestDates.delete(ds);
+  else cpDestDates.add(ds);
   renderCpCal();
 }
 function doCopyMeal(){
-  const srcEntries = mealEntries(cpSrcMeal);
-  const items = srcEntries.filter((_,i)=>{
-    const cb = document.querySelector(`.cp-check[data-idx="${i}"]`);
-    return cb ? cb.checked : false;
-  });
-  if(!items.length){toast('No items selected');return;}
-  const destLog = loadLog(cpDestDate);
-  const mk = `meal${cpDestMeal}`;
-  if(!destLog[mk]) destLog[mk]=[];
-  items.forEach(e=>destLog[mk].push({...e,id:uid()}));
-  saveLog(cpDestDate,destLog);
-  if(cpDestDate===viewDate) log=loadLog(viewDate);
+  if(!cpDestDates.size){toast('No dates selected');return;}
+  const names = getMealNames();
+  // Collect items to copy keyed by destMealKey
+  const toCopy = {}; // {mealN: [entries]}
+  if(cpSrcMode==='meal'){
+    const srcEntries = mealEntries(cpSrcMeal);
+    const items = srcEntries.filter((_,i)=>{
+      const cb = document.querySelector(`.cp-check[data-meal="${cpSrcMeal}"][data-idx="${i}"]`);
+      return cb ? cb.checked : false;
+    });
+    if(!items.length){toast('No items selected');return;}
+    toCopy[`meal${cpDestMeal}`] = items;
+  } else {
+    let total = 0;
+    for(let m=1;m<=6;m++){
+      const entries = log[`meal${m}`]||[];
+      const items = entries.filter((_,i)=>{
+        const cb = document.querySelector(`.cp-check[data-meal="${m}"][data-idx="${i}"]`);
+        return cb ? cb.checked : false;
+      });
+      if(items.length){ toCopy[`meal${m}`]=items; total+=items.length; }
+    }
+    if(!total){toast('No items selected');return;}
+  }
+  // Conflict detection: collect (date, mealKey) pairs that already have items
+  const conflicts = []; // [{ds, mk}]
+  for(const ds of cpDestDates){
+    const dl = loadLog(ds);
+    for(const mk of Object.keys(toCopy)){
+      if((dl[mk]||[]).length) conflicts.push({ds,mk});
+    }
+  }
+  if(conflicts.length){
+    // Group conflicts by meal slot for a readable message
+    const bySlot = {};
+    for(const {ds,mk} of conflicts){
+      if(!bySlot[mk]) bySlot[mk]=[];
+      bySlot[mk].push(dateNavLabel(ds));
+    }
+    const lines = Object.entries(bySlot).map(([mk,dates])=>{
+      const mNum=mk.replace('meal','');
+      return `${names[mk]||'Meal '+mNum} on ${dates.join(', ')}`;
+    }).join('\n');
+    if(!confirm(`These slots already have items:\n\n${lines}\n\nOverwrite?`)) return;
+  }
+  // Perform copy (replace destination slot)
+  for(const ds of cpDestDates){
+    const dl = loadLog(ds);
+    for(const [mk,items] of Object.entries(toCopy)){
+      dl[mk] = items.map(e=>({...e,id:uid()}));
+    }
+    saveLog(ds,dl);
+  }
+  if([...cpDestDates].includes(viewDate)) log=loadLog(viewDate);
   closeModal('cp-modal');
   renderHome();
-  toast(`Copied ${items.length} item${items.length!==1?'s':''} to Meal ${cpDestMeal}`);
+  const n = cpDestDates.size;
+  const destStr = cpSrcMode==='meal' ? `${names[`meal${cpDestMeal}`]||'Meal '+cpDestMeal}` : 'all meals';
+  toast(n===1 ? `Copied ${destStr} to ${dateNavLabel([...cpDestDates][0])}` : `Copied ${destStr} to ${n} dates`);
 }
 
 function toggleCal(){
@@ -3187,7 +3293,7 @@ function getLoggedDates(){
     if(!k?.startsWith('fuel_log_')) continue;
     try{
       const d = JSON.parse(localStorage.getItem(k));
-      const has = [1,2,3,4,5].some(m=>(d[`meal${m}`]||[]).length>0);
+      const has = [1,2,3,4,5,6].some(m=>(d[`meal${m}`]||[]).length>0);
       if(has) logged.add(k.replace('fuel_log_',''));
     }catch{}
   }
@@ -3260,7 +3366,7 @@ function exportToExcel(){
   for(const k of logKeys){
     const date=k.replace('fuel_log_','');
     let dl;try{dl=JSON.parse(localStorage.getItem(k));}catch{continue;}
-    for(let m=1;m<=5;m++){
+    for(let m=1;m<=6;m++){
       for(const e of(dl[`meal${m}`]||[])){
         let src='Saved';
         if(!e.foodId) src='Quick Add';
