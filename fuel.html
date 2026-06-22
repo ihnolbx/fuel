@@ -108,7 +108,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .mw-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .mw-name{font-size:11px;font-weight:500;color:var(--txt2);flex:1;display:flex;align-items:center;gap:4px}
 .mw-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
-.mw-tgt{font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums;text-align:right;min-width:36px}
+.mw-tgt{font-size:13px;color:var(--txt3);font-variant-numeric:tabular-nums;text-align:right;min-width:36px}
 
 /* MEALS */
 .meals-section{padding:0 12px}
@@ -350,7 +350,8 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .wt-avg-label{font-size:13px;color:var(--txt2)}
 .wt-avg-val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
 .wt-log-row{margin:10px 16px;background:var(--surf);border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:10px}
-.wt-log-date{font-size:13px;color:var(--txt2);flex:1}
+.wt-log-date{font-size:13px;color:var(--txt2);flex:1;text-align:center;white-space:nowrap}
+.wt-log-arrow{width:30px;height:30px;font-size:20px}
 .wt-log-inp{width:80px;padding:8px 10px;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-size:15px;font-weight:600;outline:none;font-family:inherit;text-align:right}
 .wt-log-inp:focus{border-color:var(--acc2)}
 .wt-log-unit{font-size:13px;color:var(--txt3)}
@@ -377,9 +378,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     <div class="header-top">
       <div class="app-title">🔥 Fuel Ihno</div>
       <div style="display:flex;gap:8px">
-        <button class="icon-btn" onclick="gotoWeight()" aria-label="Weight" title="Weight"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="15" width="18" height="7" rx="2.5"/><path d="M5 15a7 7 0 0114 0"/><line x1="12" y1="15" x2="15.5" y2="10"/></svg></button>
+        <button class="icon-btn" onclick="gotoWeight()" aria-label="Weight" title="Weight" style="font-size:17px;line-height:1">📉</button>
         <button class="icon-btn" onclick="gotoHistory()" aria-label="History" title="History" style="font-size:17px">📅</button>
-        <button class="icon-btn" onclick="gotoSettings()" aria-label="Settings">⚙</button>
+        <button class="icon-btn" onclick="gotoSettings()" aria-label="Settings" style="font-size:17px;line-height:1">⚙️</button>
       </div>
     </div>
     <div class="date-nav" id="date-nav"></div>
@@ -443,7 +444,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     <div class="wt-avg-val" id="wt-avg-val">—</div>
   </div>
   <div class="wt-log-row">
+    <button class="date-nav-btn wt-log-arrow" onclick="stepWtLogDate(-1)" aria-label="Previous day">‹</button>
     <div class="wt-log-date" id="wt-log-date">Today</div>
+    <button class="date-nav-btn wt-log-arrow" id="wt-log-next" onclick="stepWtLogDate(1)" aria-label="Next day">›</button>
     <input class="wt-log-inp" id="wt-log-inp" type="number" step="0.1" min="50" max="500" inputmode="decimal" placeholder="—">
     <span class="wt-log-unit">lb</span>
     <button class="wt-log-btn" onclick="logWeightEntry()">Log</button>
@@ -819,7 +822,7 @@ function loadLog(day){const l=lsGet(SK.log+day,{meal1:[],meal2:[],meal3:[],meal4
 function saveLog(day,log){lsSet(SK.log+day,log);}
 function loadApiKey(){return localStorage.getItem(SK.apiKey)||'';}
 function saveApiKey(k){localStorage.setItem(SK.apiKey,k);}
-function getMealNames(){return lsGet('fuel_meal_names',{meal1:'Meal 1',meal2:'Meal 2',meal3:'Meal 3',meal4:'Meal 4',meal5:'Meal 5',meal6:'Meal 6'});}
+function getMealNames(){return lsGet('fuel_meal_names',{meal1:'Meal #1',meal2:'Meal #2',meal3:'Meal #3',meal4:'Meal #4',meal5:'Meal #5',meal6:'Meal #6'});}
 function saveMealNames(n){lsSet('fuel_meal_names',n);}
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -1226,7 +1229,7 @@ function renderDateNav(){
      <button class="date-nav-label" onclick="toggleCal()">${dateNavLabel(viewDate)}</button>
      <div style="display:flex;align-items:center;gap:2px">
        <button class="date-nav-btn" onclick="navDay(1)"${atMax?' disabled':''}>›</button>
-       <button class="date-nav-btn" onclick="openCopyDay()" title="Copy day" style="font-size:15px">📋</button>
+       <button class="date-nav-btn" onclick="openCopyDay()" title="Copy day" aria-label="Copy day"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
      </div>`;
 }
 
@@ -1349,7 +1352,7 @@ function renderMealCard(n){
   const tot=mealTotals(n);
   const hasFood=entries.length>0;
   const sub=`${r0(tot.calories)} Cal, ${r1(tot.protein)}p, ${r1(tot.carbs)}c, ${r1(tot.fat)}f`;
-  const mealName=getMealNames()[`meal${n}`]||`Meal ${n}`;
+  const mealName=getMealNames()[`meal${n}`]||`Meal #${n}`;
   return `<div class="meal-card${hasFood?' expanded':''}" id="mc${n}">
     <div class="meal-header" onclick="toggleMeal(${n})">
       <div class="meal-hdr-left">
@@ -1486,6 +1489,11 @@ function openEditSheet(id, mealNum){
     carbs:       entry.carbs    / perSv,
     fat:         entry.fat      / perSv,
   };
+  // If "serving" was stripped (weight foods offering g+oz), default to g instead.
+  if(svServingStripped(editFood)){
+    editQty  = entry.servings * (editFood.servingSize || 1) * (unitConv(editFood.servingUnit,'g') || 1);
+    editUnit = 'g';
+  }
   const titleEl = document.getElementById('edit-sheet-title');
   if(titleEl) titleEl.textContent = entry.name;
   renderEditSheet();
@@ -1496,9 +1504,13 @@ function renderEditSheet(){
   const f = editFood; if(!f) return;
   const opts = svUnitOptions(f);
   const isDesc = opts === null;
-  const note = !isDesc
-    ? `1 serving = ${fmtQty(f.servingSize)} ${f.servingUnit}`
-    : (f.servingSize && f.servingSize!==1 ? `${f.servingSize} ${f.servingUnit} per serving` : '');
+  // No "1 serving = …" line when "serving" was stripped (weight foods offering g+oz).
+  let note = '';
+  if(isDesc){
+    note = (f.servingSize && f.servingSize!==1 ? `${f.servingSize} ${f.servingUnit} per serving` : '');
+  } else if(opts.includes('serving')){
+    note = `1 serving = ${fmtQty(f.servingSize)} ${f.servingUnit}`;
+  }
   let unitEl;
   if(isDesc){
     const lbl = f.servingUnit.length>12 ? f.servingUnit.slice(0,12)+'…' : f.servingUnit;
@@ -1619,7 +1631,7 @@ function addToLog(food,qty,mealNum){
   log[mk].push(entry);
   saveLog(viewDate,log);
   renderHome();
-  toast(`Added ${food.name} to Meal ${mealNum}`);
+  toast(`Added ${food.name} to ${getMealNames()[`meal${mealNum}`]||`Meal #${mealNum}`}`);
 }
 
 // ─── SWIPE TO DELETE ─────────────────────────────────────────────────────────
@@ -1726,6 +1738,14 @@ function initSwipeDismiss(){
         inner.style.transform='';
         const food=srFoods[+targetWrap.dataset.idx];
         if(food){
+          // Seed last-used like the tap path: swipe logs 1 serving, so store
+          // that in the food's default read-back unit (g for g+oz weight foods,
+          // else 'serving') — keyed by food.id — so it round-trips in the sheet.
+          if(food.id){
+            const u = svServingStripped(food) ? 'g' : 'serving';
+            const q = u==='g' ? (food.servingSize||1)*(unitConv(food.servingUnit,'g')||1) : 1;
+            setLastServing(food.id, q, u);
+          }
           addToLog(food,1,addMeal);
           inner.classList.add('sr-flash');
           setTimeout(()=>inner.classList.remove('sr-flash'),600);
@@ -1780,7 +1800,7 @@ function renderMealSel(containerId,active,cb){
   const names=getMealNames();
   document.getElementById(containerId).innerHTML=[1,2,3,4,5,6].map(i=>
     `<button class="ms-btn${active===i?' on':''}" data-meal="${i}" data-cb="${containerId}"
-      onclick="pickMeal(this,${i},'${containerId}')">${esc(names[`meal${i}`]||`Meal ${i}`)}</button>`
+      onclick="pickMeal(this,${i},'${containerId}')">${esc(names[`meal${i}`]||`Meal #${i}`)}</button>`
   ).join('');
 }
 const mealCbs={};
@@ -2018,12 +2038,23 @@ function svCalcMacros(qty,unit,food){
   const p=food.protein*s, c=food.carbs*s, f=food.fat*s;
   return {calories:calcCal(p,c,f), protein:p, carbs:c, fat:f};
 }
-// Alternative units the user can switch to; always starts with 'serving'
+// Database foods (USDA / Open Food Facts) are measured in real units (g/oz/ml…),
+// not in "servings". User-created and other foods keep their custom unit as-is.
+// Alternative units the user can switch to.
+// Rule: if a food offers both g AND oz, it's measured by weight — drop "serving"
+// (it's never a valid unit for a weight-measured food). Foods without g+oz keep "serving".
 function svUnitOptions(food){
   const grp = unitGroup(food.servingUnit);
-  if(grp==='descriptor') return null; // no switching for descriptor units
+  if(grp==='descriptor') return null; // single custom unit (e.g. burger/piece) — no switching
   const alts = grp==='weight' ? ['g','oz'] : ['ml','fl oz','cup','tbsp','tsp'];
-  return ['serving', ...alts];
+  let opts = ['serving', ...alts];
+  if(opts.includes('g') && opts.includes('oz')) opts = opts.filter(u=>u!=='serving');
+  return opts;
+}
+// True when this food's unit dropdown no longer offers "serving" (stripped by the g+oz rule).
+function svServingStripped(food){
+  const opts = svUnitOptions(food);
+  return opts !== null && !opts.includes('serving');
 }
 // Display-friendly number: removes trailing .0
 function fmtQty(n){
@@ -2032,10 +2063,40 @@ function fmtQty(n){
   return String(s);
 }
 
+// Per-food last-used display serving (qty + unit), keyed by food id.
+function getLastServing(foodId){
+  if(!foodId) return null;
+  const m = lsGet('fuel_last_serving', {});
+  return m[foodId] || null;
+}
+function setLastServing(foodId, qty, unit){
+  if(!foodId) return;
+  const m = lsGet('fuel_last_serving', {});
+  m[foodId] = {qty, unit};
+  lsSet('fuel_last_serving', m);
+}
+
 function openServingSheet(food){
   svFood = food;
-  svUnit = 'serving';
-  svQty  = 1;
+  const opts = svUnitOptions(food);
+  // Default unit/qty. If "serving" was stripped (weight foods offering g+oz), default to g
+  // at one serving's worth; otherwise start at 1 'serving'. Same numeric default either way.
+  if(svServingStripped(food)){
+    svUnit = 'g';
+    svQty  = (food.servingSize || 1) * (unitConv(food.servingUnit,'g') || 1);
+  } else {
+    svUnit = 'serving';
+    svQty  = 1;
+  }
+  // Override with last-used serving for this food, if recorded and still a valid unit.
+  const last = getLastServing(food.id);
+  if(last && last.qty > 0){
+    const unitOk = opts === null ? (last.unit === 'serving') : opts.includes(last.unit);
+    if(unitOk){
+      svUnit = last.unit;
+      svQty  = last.qty;
+    }
+  }
   svMeal = addMeal;
   closeSheet('add-sheet');
   renderSvSheet();
@@ -2060,10 +2121,14 @@ function renderSvSheet(){
   const opts = svUnitOptions(f);
   const isDesc = opts===null;
 
-  // Serving note: show how macros are defined
-  const note = !isDesc
-    ? `1 serving = ${fmtQty(f.servingSize)} ${f.servingUnit}`
-    : (f.servingSize&&f.servingSize!==1 ? `${f.servingSize} ${f.servingUnit} per serving` : '');
+  // Serving note: show how macros are defined.
+  // No "1 serving = …" line when "serving" was stripped (weight foods offering g+oz).
+  let note = '';
+  if(isDesc){
+    note = (f.servingSize&&f.servingSize!==1 ? `${f.servingSize} ${f.servingUnit} per serving` : '');
+  } else if(opts.includes('serving')){
+    note = `1 serving = ${fmtQty(f.servingSize)} ${f.servingUnit}`;
+  }
 
   // Unit element: select dropdown for convertible units, static label for descriptor
   let unitEl;
@@ -2093,7 +2158,7 @@ function renderSvSheet(){
     `<div id="sv-macros" class="sv-macros">${svMacrosHtml(m)}</div>`+
     `<div class="meal-sel-lbl">Add to Meal</div>`+
     `<div class="meal-sel" id="sv-meal-sel">`+
-      (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${svMeal===i?' on':''}" onclick="setSvMeal(${i})">${esc(n[`meal${i}`]||`Meal ${i}`)}</button>`).join('');})()+
+      (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${svMeal===i?' on':''}" onclick="setSvMeal(${i})">${esc(n[`meal${i}`]||`Meal #${i}`)}</button>`).join('');})()+
     `</div>`+
     `<button class="btn btn-p" onclick="confirmSv()">Add to Log</button>`;
 }
@@ -2143,6 +2208,7 @@ function setSvUnit(unit){
 function setSvMeal(n){svMeal=n;document.querySelectorAll('#sv-meal-sel .ms-btn').forEach((b,i)=>b.classList.toggle('on',i+1===n));}
 function confirmSv(){
   if(!svFood||svQty<=0) return;
+  setLastServing(svFood.id, svQty, svUnit);
   addToLog(svFood, svCalcServings(svQty, svUnit, svFood), svMeal);
   closeSheet('sv-sheet');
 }
@@ -2289,7 +2355,7 @@ function renderAIConfirm(){
     </div>`;
   }).join('');
   document.getElementById('aic-meal-sel').innerHTML=
-    (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${aiMeal===i?' on':''}" onclick="setAIMeal(${i})">${esc(n[`meal${i}`]||`Meal ${i}`)}</button>`).join('');})();
+    (()=>{const n=getMealNames();return[1,2,3,4,5,6].map(i=>`<button class="ms-btn${aiMeal===i?' on':''}" onclick="setAIMeal(${i})">${esc(n[`meal${i}`]||`Meal #${i}`)}</button>`).join('');})();
 }
 
 function rmAI(idx){aiItems.splice(idx,1);renderAIConfirm();}
@@ -2323,7 +2389,7 @@ function confirmAI(){
   saveLog(viewDate,log);
   renderHome();
   closeSheet('aic-sheet');
-  toast(`Added ${aiItems.length} item${aiItems.length!==1?'s':''} to ${getMealNames()[`meal${aiMeal}`]||'Meal '+aiMeal}`);
+  toast(`Added ${aiItems.length} item${aiItems.length!==1?'s':''} to ${getMealNames()[`meal${aiMeal}`]||'Meal #'+aiMeal}`);
   aiItems=[];
 }
 
@@ -2751,9 +2817,11 @@ function saveWeight(day, lb){ lsSet(WK+day, {lb}); }
 
 let wtTab = 'week';
 let wtWindowEnd = todayStr();
+let wtLogDate = todayStr();   // date the log-row entry applies to (defaults to today)
 
 function gotoWeight(){
   wtWindowEnd = todayStr();
+  wtLogDate = todayStr();
   showScreen('weight');
   document.querySelectorAll('.wt-tab-btn').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === wtTab));
   renderWeightScreen();
@@ -2775,10 +2843,17 @@ function wtWindowDays(){ return wtTab==='week'?7:wtTab==='month'?30:365; }
 
 function wtWindowStart(){ return dateShift(wtWindowEnd, -(wtWindowDays()-1)); }
 
+// Chevron arrows: jump by a full period (1 week / 1 month / 1 year), clamped to today.
 function shiftWtWindow(dir){
   const shift = wtTab==='week'?7:wtTab==='month'?30:365;
   const newEnd = dateShift(wtWindowEnd, dir*shift);
   wtWindowEnd = newEnd > todayStr() ? todayStr() : newEnd;
+  renderWeightScreen();
+}
+
+// Chart swipe/drag: nudge the window by a single day, same width, no forward/back limit.
+function nudgeWtWindow(dir){
+  wtWindowEnd = dateShift(wtWindowEnd, dir);
   renderWeightScreen();
 }
 
@@ -2821,22 +2896,42 @@ function renderWeightScreen(){
     document.getElementById('wt-avg-val').textContent = '—';
   }
 
-  // Log input: prefill with today's value or most recent
-  const todayEntry = loadWeight(today);
-  if(todayEntry){
-    document.getElementById('wt-log-inp').value = todayEntry.lb;
+  syncWtLogRow();
+
+  drawWeightChart(entries, days, start);
+}
+
+// Refresh the log row to reflect wtLogDate: label, forward-arrow state, prefilled value.
+function syncWtLogRow(){
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today = todayStr();
+  // Date label — reuse dashboard phrasing; append year when not the current year.
+  const d = new Date(wtLogDate+'T12:00:00');
+  let label = dateNavLabel(wtLogDate);
+  if(d.getFullYear() !== new Date().getFullYear()) label += `, ${d.getFullYear()}`;
+  document.getElementById('wt-log-date').textContent = label;
+  // Forward arrow disabled at today (never step into the future).
+  document.getElementById('wt-log-next').disabled = wtLogDate >= today;
+  // Prefill: existing entry for this date, else most recent weight on/before it.
+  const onDate = loadWeight(wtLogDate);
+  if(onDate){
+    document.getElementById('wt-log-inp').value = onDate.lb;
   } else {
     let latestLb = null;
     for(let i=0;i<365&&latestLb===null;i++){
-      const w = loadWeight(dateShift(today,-i));
+      const w = loadWeight(dateShift(wtLogDate,-i));
       if(w) latestLb = w.lb;
     }
     document.getElementById('wt-log-inp').value = latestLb!==null ? latestLb : '';
   }
-  const logDate = new Date(today+'T12:00:00');
-  document.getElementById('wt-log-date').textContent = `Today · ${MN[logDate.getMonth()]} ${logDate.getDate()}`;
+}
 
-  drawWeightChart(entries, days, start);
+// Step the log-row date by one day. Backward unlimited; never past today.
+function stepWtLogDate(dir){
+  const next = dateShift(wtLogDate, dir);
+  if(next > todayStr()) return;
+  wtLogDate = next;
+  syncWtLogRow();
 }
 
 function drawWeightChart(entries, days, start){
@@ -2926,9 +3021,9 @@ function drawWeightChart(entries, days, start){
 function logWeightEntry(){
   const lb=parseFloat(document.getElementById('wt-log-inp').value);
   if(isNaN(lb)||lb<50||lb>500){toast('Enter a valid weight (50–500 lb)');return;}
-  const today=todayStr();
-  const existing=loadWeight(today);
-  saveWeight(today, lb);
+  if(wtLogDate>todayStr()){toast('Cannot log a future date');return;}
+  const existing=loadWeight(wtLogDate);
+  saveWeight(wtLogDate, lb);
   toast(existing?'Weight updated':'Weight logged!');
   renderWeightScreen();
 }
@@ -2967,16 +3062,29 @@ function renderWeightHistory(){
   list.innerHTML=html;
 }
 
-// Touch-pan on chart shifts the window (left swipe = forward in time, right = back)
+// Swipe/drag on chart nudges the window one day per step (left = forward in time, right = back).
+// Repeated swipes pan indefinitely in either direction. Arrows (shiftWtWindow) jump a full period.
 function initWeightSwipe(){
   const wrap=document.getElementById('wt-chart-wrap');
+  const STEP=40; // px per one-day nudge
+  // Touch
   let sx=0;
   wrap.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
   wrap.addEventListener('touchend',e=>{
     const dx=e.changedTouches[0].clientX-sx;
-    if(Math.abs(dx)<40)return;
-    shiftWtWindow(dx>0?-1:1);
+    if(Math.abs(dx)<STEP)return;
+    nudgeWtWindow(dx>0?-1:1);
   },{passive:true});
+  // Mouse drag
+  let dragging=false, mx=0;
+  wrap.addEventListener('mousedown',e=>{dragging=true;mx=e.clientX;e.preventDefault();});
+  window.addEventListener('mouseup',e=>{
+    if(!dragging)return;
+    dragging=false;
+    const dx=e.clientX-mx;
+    if(Math.abs(dx)<STEP)return;
+    nudgeWtWindow(dx>0?-1:1);
+  });
 }
 
 // ─── WEIGHT SEED ─────────────────────────────────────────────────────────────
@@ -3028,7 +3136,7 @@ let calViewMonth = new Date().getMonth();
 // ─── MEAL MENU ────────────────────────────────────────────────────────────────
 function openMealMenu(n){
   menuMeal = n;
-  const mName = getMealNames()[`meal${n}`]||`Meal ${n}`;
+  const mName = getMealNames()[`meal${n}`]||`Meal #${n}`;
   document.getElementById('meal-menu-body').innerHTML =
     `<div class="meal-menu-title">${esc(mName)}</div>`+
     `<button class="meal-menu-opt" onclick="closeSheet('meal-menu-sheet');openCopyMeal(${n})"><span class="meal-menu-ico">📋</span>Copy ${esc(mName)}</button>`+
@@ -3039,7 +3147,7 @@ function openMealMenu(n){
 }
 function renameMeal(n){
   const names=getMealNames();
-  const cur=names[`meal${n}`]||`Meal ${n}`;
+  const cur=names[`meal${n}`]||`Meal #${n}`;
   const val=prompt(`Rename "${cur}":`,cur);
   if(val===null) return;
   names[`meal${n}`]=val.trim()||cur;
@@ -3047,7 +3155,7 @@ function renameMeal(n){
   renderHome();
 }
 function confirmDeleteMeal(n){
-  const mName=getMealNames()[`meal${n}`]||`Meal ${n}`;
+  const mName=getMealNames()[`meal${n}`]||`Meal #${n}`;
   if(!confirm(`Delete all items from ${mName}?`)) return;
   log[`meal${n}`]=[];
   saveLog(viewDate,log);
@@ -3073,7 +3181,7 @@ function doQuickAddModal(){
   saveLog(viewDate,log);
   closeModal('qa-modal');
   renderHome();
-  toast(`Added to ${getMealNames()[`meal${qaTargetMeal}`]||'Meal '+qaTargetMeal}`);
+  toast(`Added to ${getMealNames()[`meal${qaTargetMeal}`]||'Meal #'+qaTargetMeal}`);
 }
 
 // ─── COPY MEAL MODAL ──────────────────────────────────────────────────────────
@@ -3102,11 +3210,11 @@ function openCopyDay(){
 }
 function renderCpBody(){
   const names = getMealNames();
-  const mealOpts = [1,2,3,4,5,6].map(i=>`<option value="${i}"${i===cpDestMeal?' selected':''}>${esc(names[`meal${i}`]||`Meal ${i}`)}</option>`).join('');
+  const mealOpts = [1,2,3,4,5,6].map(i=>`<option value="${i}"${i===cpDestMeal?' selected':''}>${esc(names[`meal${i}`]||`Meal #${i}`)}</option>`).join('');
   let itemsHtml = '';
   if(cpSrcMode==='meal'){
     const entries = mealEntries(cpSrcMeal);
-    const mName = names[`meal${cpSrcMeal}`]||`Meal ${cpSrcMeal}`;
+    const mName = names[`meal${cpSrcMeal}`]||`Meal #${cpSrcMeal}`;
     const itemRows = entries.map((e,i)=>{
       const nm  = e.brand ? `${esc(e.name)} (${esc(e.brand)})` : esc(e.name);
       const det = `${servingLabel(e)} · ${r0(e.calories)} Cal, ${r1(e.protein)}p ${r1(e.carbs)}c ${r1(e.fat)}f`;
@@ -3129,7 +3237,7 @@ function renderCpBody(){
       const entries = log[`meal${m}`]||[];
       if(!entries.length) continue;
       anyItems = true;
-      const mName = names[`meal${m}`]||`Meal ${m}`;
+      const mName = names[`meal${m}`]||`Meal #${m}`;
       const rows = entries.map((e,i)=>{
         const nm  = e.brand ? `${esc(e.name)} (${esc(e.brand)})` : esc(e.name);
         const det = `${servingLabel(e)} · ${r0(e.calories)} Cal, ${r1(e.protein)}p ${r1(e.carbs)}c ${r1(e.fat)}f`;
@@ -3239,7 +3347,7 @@ function doCopyMeal(){
     }
     const lines = Object.entries(bySlot).map(([mk,dates])=>{
       const mNum=mk.replace('meal','');
-      return `${names[mk]||'Meal '+mNum} on ${dates.join(', ')}`;
+      return `${names[mk]||'Meal #'+mNum} on ${dates.join(', ')}`;
     }).join('\n');
     if(!confirm(`These slots already have items:\n\n${lines}\n\nOverwrite?`)) return;
   }
@@ -3255,7 +3363,7 @@ function doCopyMeal(){
   closeModal('cp-modal');
   renderHome();
   const n = cpDestDates.size;
-  const destStr = cpSrcMode==='meal' ? `${names[`meal${cpDestMeal}`]||'Meal '+cpDestMeal}` : 'all meals';
+  const destStr = cpSrcMode==='meal' ? `${names[`meal${cpDestMeal}`]||'Meal #'+cpDestMeal}` : 'all meals';
   toast(n===1 ? `Copied ${destStr} to ${dateNavLabel([...cpDestDates][0])}` : `Copied ${destStr} to ${n} dates`);
 }
 
