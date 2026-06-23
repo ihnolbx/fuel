@@ -888,6 +888,13 @@ function toast(msg){
   clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2400);
 }
 
+function levenshtein(a,b){
+  const m=a.length,n=b.length,dp=[];
+  for(let i=0;i<=m;i++){dp[i]=[i];for(let j=1;j<=n;j++)dp[i][j]=i?0:j;}
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
 // ─── SEARCH ──────────────────────────────────────────────────────────────────
 function scoreAgainst(q, t) {
   // Returns 0–100 match score of query q against target string t.
@@ -900,11 +907,18 @@ function scoreAgainst(q, t) {
   if (words.length < 2) {
     // single word: partial word boundary match
     if (tl.split(/\s+/).some(w => w.startsWith(ql))) return 60;
-    return 0;
+    // fall through to levenshtein
+  } else {
+    const hit = words.filter(w => tl.includes(w));
+    if (hit.length === words.length) return 65;
+    if (hit.length > 0)              return 25 + (hit.length / words.length) * 30;
+    // fall through to levenshtein
   }
-  const hit = words.filter(w => tl.includes(w));
-  if (hit.length === words.length) return 65;
-  if (hit.length > 0)              return 25 + (hit.length / words.length) * 30;
+  // Typo tolerance: check edit distance against each word in target
+  const tWords = tl.split(/\s+/).filter(Boolean);
+  const minDist = Math.min(...tWords.map(w => levenshtein(ql, w)));
+  if (minDist === 1) return 50;
+  if (minDist === 2) return 30;
   return 0;
 }
 
@@ -965,20 +979,34 @@ function normalizeUSDA(item){
     console.log('[USDA][norm] SKIP all-zero macros:', item.description, {cal,pro,carb,fat}, 'nutrientIds in response:', item.foodNutrients?.map(n=>n.nutrientId).slice(0,10));
     return null;
   }
-  let sz=100,servUnit='g';
+  let sz=100,servUnit='g',gramSz=100;
+  let foundPortion=false;
   // Prefer household measure from foodPortions (real serving, not 100g)
   if(item.foodPortions?.length){
-    const p=item.foodPortions.find(p=>p.gramWeight>0&&p.portionDescription);
-    if(p){sz=p.gramWeight;servUnit='g';}
+    const valid=item.foodPortions.filter(p=>p.gramWeight>0&&p.portionDescription);
+    const PREF=/\b(serving|cup|tbsp|tsp|fl\s*oz|oz)\b/i;
+    const p=valid.find(p=>PREF.test(p.portionDescription))||valid[0];
+    if(p){
+      foundPortion=true;
+      gramSz=p.gramWeight;
+      const dm=p.portionDescription.match(/^([\d.]+)\s*(.+)$/);
+      const cnt=dm?parseFloat(dm[1])||1:1;
+      const rawDesc=(dm?dm[2]:p.portionDescription).trim().toLowerCase();
+      const ALIASES={'fluid ounce':'fl oz','fluid oz':'fl oz','tablespoon':'tbsp','teaspoon':'tsp'};
+      const normDesc=ALIASES[rawDesc]||rawDesc;
+      if(unitGroup(normDesc)!=='descriptor'){sz=cnt;servUnit=normDesc;}
+      else{sz=gramSz;servUnit='g';}
+    }
   }
   // Fall back to servingSize field
-  if(sz===100&&item.servingSize){
+  if(!foundPortion&&item.servingSize){
     sz=item.servingSize;
     const rawUnit=(item.servingSizeUnit||'g').toLowerCase().trim();
     const unitMap={grm:'g',mltr:'ml',oz:'oz',lbm:'lb'};
     servUnit=unitMap[rawUnit]||rawUnit||'g';
+    gramSz=sz;
   }
-  const scale=sz/100;
+  const scale=gramSz/100;
   return {
     id:'usda_'+item.fdcId, type:'food', source:'usda',
     name:item.description,
@@ -987,6 +1015,7 @@ function normalizeUSDA(item){
     calories:r1(calcCal(pro*scale,carb*scale,fat*scale)), protein:r1(pro*scale), carbs:r1(carb*scale), fat:r1(fat*scale),
   };
 }
+function slugify(s){return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
 function normalizeOFF(item){
   const n=item.nutriments||{};
   const cal=n['energy-kcal_100g']||n['energy-kcal']||(n['energy_100g']?+(n['energy_100g']/4.184).toFixed(1):0)||0;
@@ -1017,9 +1046,9 @@ function normalizeOFF(item){
   let servSz=100,servUnit='g';
   const sizeStr=String(item.serving_size||'');
   if(sizeStr){
-    // Handle "1 oz (28g)" style — extract parenthesized grams when present
-    const parenthG=sizeStr.match(/\((\d+\.?\d*)\s*g\)/i);
-    if(parenthG){servSz=parseFloat(parenthG[1])||100;servUnit='g';}
+    // Prefer parenthesized quantity: "(28g)", "(0.5 oz)", "(30ml)"
+    const parenthM=sizeStr.match(/\(([\d.]+)\s*([a-zA-Z]+)\)/i);
+    if(parenthM){servSz=parseFloat(parenthM[1])||100;servUnit=parenthM[2].toLowerCase();}
     else{
       const numM=sizeStr.match(/^([\d.]+)/);
       const unitM=sizeStr.match(/([a-zA-Z]+)/);
@@ -1029,9 +1058,14 @@ function normalizeOFF(item){
   } else if(item.serving_quantity){
     servSz=parseFloat(item.serving_quantity)||100;
   }
+  // Normalize servSz to grams or ml so scale=servSz/100 is always correct
+  const grp=unitGroup(servUnit);
+  if(grp==='weight'){servSz=servSz*(unitConv(servUnit,'g')||1);servUnit='g';}
+  else if(grp==='volume'){servSz=servSz*(unitConv(servUnit,'ml')||1);servUnit='ml';}
+  else{servSz=item.serving_quantity?parseFloat(item.serving_quantity)||100:100;servUnit='g';}
   const scale=servSz/100;
   return {
-    id:'off_'+(item.code||Math.random().toString(36).slice(2)), type:'food', source:'off',
+    id:'off_'+(item.code||slugify(item.product_name+'|'+(item.brands||''))), type:'food', source:'off',
     name:item.product_name,
     brand:item.brands?.split(',')[0]?.trim()||'',
     servingSize:servSz, servingUnit:servUnit,
