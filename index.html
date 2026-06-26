@@ -2868,7 +2868,6 @@ function gotoWeightHistory(){
 
 function setWtTab(tab){
   wtTab = tab;
-  wtWindowEnd = todayStr();
   document.querySelectorAll('.wt-tab-btn').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === tab));
   renderWeightScreen();
 }
@@ -3551,10 +3550,21 @@ function exportToExcel(){
   }
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(setRows),'Settings');
 
+  // Tab 6: Weight Log
+  const wtRows=[['Date','Weight (lb)']];
+  const wtKeys=[];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k?.startsWith('fuel_weight_'))wtKeys.push(k);}
+  wtKeys.sort();
+  for(const k of wtKeys){
+    let v;try{v=JSON.parse(localStorage.getItem(k));}catch{continue;}
+    if(v?.lb>0)wtRows.push([k.replace('fuel_weight_',''),v.lb]);
+  }
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(wtRows),'Weight Log');
+
   const today=new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb,`fuel-ihno-backup-${today}.xlsx`);
-  const nl=logRows.length-1,nf=foodRows.length-1;
-  setBackupStatus(`Exported ${nl} log entr${nl===1?'y':'ies'} · ${nf} food${nf===1?'':'s'}`);
+  const nl=logRows.length-1,nf=foodRows.length-1,nw=wtRows.length-1;
+  setBackupStatus(`Exported ${nl} log entr${nl===1?'y':'ies'} · ${nf} food${nf===1?'':'s'} · ${nw} weight entr${nw===1?'y':'ies'}`);
   toast('Export complete!');
 }
 
@@ -3582,7 +3592,7 @@ function triggerImport(){
 }
 
 function parseImportWorkbook(wb){
-  const d={logEntries:[],customFoods:[],favs:[],summaries:[]};
+  const d={logEntries:[],customFoods:[],favs:[],summaries:[],weightEntries:[]};
 
   if(wb.SheetNames.includes('Food Log')){
     const rows=XLSX.utils.sheet_to_json(wb.Sheets['Food Log'],{header:1,defval:''});
@@ -3636,6 +3646,17 @@ function parseImportWorkbook(wb){
     }
   }
 
+  if(wb.SheetNames.includes('Weight Log')){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets['Weight Log'],{header:1,defval:''});
+    for(let i=1;i<rows.length;i++){
+      const [date,lb]=rows[i];
+      if(!date)continue;
+      const n=Number(lb);
+      if(!(n>0))continue;
+      d.weightEntries.push({date:String(date).trim(),lb:n});
+    }
+  }
+
   return d;
 }
 
@@ -3646,7 +3667,8 @@ function openImportConfirm(d){
     `<strong>${d.logEntries.length}</strong> food log entr${d.logEntries.length===1?'y':'ies'}<br>`+
     `<strong>${d.customFoods.length}</strong> custom food${d.customFoods.length===1?'':'s'}<br>`+
     `<strong>${d.favs.length}</strong> favorite${d.favs.length===1?'':'s'}<br>`+
-    `<strong>${d.summaries.length}</strong> weekly summar${d.summaries.length===1?'y':'ies'}<br><br>`+
+    `<strong>${d.summaries.length}</strong> weekly summar${d.summaries.length===1?'y':'ies'}<br>`+
+    `<strong>${(d.weightEntries||[]).length}</strong> weight entr${(d.weightEntries||[]).length===1?'y':'ies'}<br><br>`+
     `<strong>Merge</strong> — adds imported entries that don't already exist; keeps your current data intact.<br><br>`+
     `<strong>Replace All</strong> — clears all your current data first, then imports fresh from this file.`;
   openSheet('import-confirm-sheet');
@@ -3712,6 +3734,14 @@ function performImport(mode){
     lsSet('fuel_week_'+s.weekStart,s);
   }
 
+  // Import weight entries
+  let wtCount=0;
+  for(const {date,lb} of (d.weightEntries||[])){
+    if(mode==='merge'&&localStorage.getItem(WK+date))continue;
+    lsSet(WK+date,{lb});
+    wtCount++;
+  }
+
   // Reload in-memory state
   db=loadDb();
   profiles=loadProfiles();
@@ -3720,7 +3750,7 @@ function performImport(mode){
   renderHome();
   renderSettings();
 
-  const msg=`Imported ${logCount} log entr${logCount===1?'y':'ies'}, ${foodCount} food${foodCount===1?'':'s'}, ${favCount} favorite${favCount===1?'':'s'}`;
+  const msg=`Imported ${logCount} log entr${logCount===1?'y':'ies'}, ${foodCount} food${foodCount===1?'':'s'}, ${favCount} favorite${favCount===1?'':'s'}, ${wtCount} weight entr${wtCount===1?'y':'ies'}`;
   setBackupStatus(msg);
   toast('Import complete!');
 }
