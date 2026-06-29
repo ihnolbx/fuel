@@ -1,0 +1,14 @@
+name = "fuel-sync"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fuel"
+database_id = "FILL_IN_AFTER: wrangler d1 create fuel"
+
+[vars]
+PAGES_ORIGIN = "https://ihnolbx.github.io"
+
+# Set the auth token via:  wrangler secret put SYNC_TOKEN
+# Never commit the token value.
