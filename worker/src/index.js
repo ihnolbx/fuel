@@ -3,11 +3,13 @@ const TABLES = {
   foods: [
     'id', 'name', 'brand', 'source', 'external_id', 'serving_qty',
     'serving_unit', 'default_unit', 'kcal', 'protein', 'carbs', 'fat',
+    'sat_fat', 'fiber', 'sugar', 'sodium', 'cholesterol',
     'updated_at', 'deleted_at',
   ],
   log_entries: [
     'id', 'local_date', 'logged_at', 'food_id', 'food_name', 'qty', 'unit',
-    'kcal', 'protein', 'carbs', 'fat', 'updated_at', 'deleted_at',
+    'kcal', 'protein', 'carbs', 'fat', 'meal', 'serving_size',
+    'updated_at', 'deleted_at',
   ],
   weight_entries: [
     'id', 'local_date', 'measured_at', 'weight_lbs', 'body_fat_pct', 'notes',

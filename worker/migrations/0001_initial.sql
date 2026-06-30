@@ -16,6 +16,7 @@ CREATE TABLE foods (
   serving_unit TEXT,
   default_unit TEXT,
   kcal         REAL, protein REAL, carbs REAL, fat REAL,  -- per serving
+  sat_fat REAL, fiber REAL, sugar REAL, sodium REAL, cholesterol REAL,
   updated_at   INTEGER NOT NULL,        -- client edit time (epoch ms) — LWW
   deleted_at   INTEGER,                 -- tombstone (epoch ms) or NULL
   rev          INTEGER NOT NULL         -- server-allocated
@@ -33,6 +34,8 @@ CREATE TABLE log_entries (
   qty        REAL NOT NULL,
   unit       TEXT NOT NULL,
   kcal       REAL, protein REAL, carbs REAL, fat REAL,  -- SNAPSHOT
+  meal       INTEGER NOT NULL DEFAULT 1,
+  serving_size REAL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER,
   rev        INTEGER NOT NULL

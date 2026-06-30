@@ -50,6 +50,7 @@ R=$(sync 0 '{
     "serving_unit": "g",
     "default_unit": "g",
     "kcal": 89, "protein": 1.1, "carbs": 23, "fat": 0.3,
+    "sat_fat": 0.1, "fiber": 2.6, "sugar": 12, "sodium": 1, "cholesterol": 0,
     "updated_at": 1000,
     "deleted_at": null
   }]
@@ -86,7 +87,7 @@ B_FOOD=$(echo "$RB1" | jq -r '.changes.foods[0].id // "none"')
 check "B sees A's food on first pull" "$B_FOOD" "food-aaa"
 check "B cursor is now 1" "$B_CURSOR" "1"
 
-# B pushes a weight entry
+# B pushes a weight entry and a log entry (covers meal + serving_size columns)
 RB2=$(sync 1 '{
   "weight_entries": [{
     "id": "wt-bbb",
@@ -97,18 +98,35 @@ RB2=$(sync 1 '{
     "notes": null,
     "updated_at": 2000,
     "deleted_at": null
+  }],
+  "log_entries": [{
+    "id": "log-bbb",
+    "local_date": "2026-01-01",
+    "logged_at": 2000,
+    "food_id": null,
+    "food_name": "Quick add",
+    "qty": 1, "unit": "serving",
+    "kcal": 300, "protein": 20, "carbs": 30, "fat": 10,
+    "meal": 2, "serving_size": null,
+    "updated_at": 2000, "deleted_at": null
   }]
 }')
 B_CURSOR2=$(echo "$RB2" | jq -r '.cursor')
 WT_BACK=$(echo "$RB2" | jq -r '.changes.weight_entries[0].id // "none"')
+LOG_BACK=$(echo "$RB2" | jq -r '.changes.log_entries[0].id // "none"')
+LOG_MEAL=$(echo "$RB2" | jq -r '.changes.log_entries[0].meal // "none"')
 check "B cursor after push is 2" "$B_CURSOR2" "2"
 check "B sees its own weight entry in response" "$WT_BACK" "wt-bbb"
+check "B sees its own log entry in response" "$LOG_BACK" "log-bbb"
+check "log entry meal slot round-trips correctly" "$LOG_MEAL" "2"
 
-# A pulls from cursor=1 — should see B's weight entry
+# A pulls from cursor=1 — should see B's weight entry and log entry
 RA2=$(sync 1 '{}')
 A_WT=$(echo "$RA2" | jq -r '.changes.weight_entries[0].id // "none"')
+A_LOG=$(echo "$RA2" | jq -r '.changes.log_entries[0].id // "none"')
 A_CURSOR2=$(echo "$RA2" | jq -r '.cursor')
 check "A sees B's weight entry" "$A_WT" "wt-bbb"
+check "A sees B's log entry" "$A_LOG" "log-bbb"
 check "A cursor is now 2" "$A_CURSOR2" "2"
 
 
@@ -122,6 +140,7 @@ sync 2 '{
     "brand": null, "source": "manual", "external_id": null,
     "serving_qty": 1, "serving_unit": "serving", "default_unit": "serving",
     "kcal": 100, "protein": 5, "carbs": 10, "fat": 2,
+    "sat_fat": 1, "fiber": 0, "sugar": 0, "sodium": 50, "cholesterol": 10,
     "updated_at": 5000,
     "deleted_at": null
   }]
@@ -136,6 +155,7 @@ sync 3 '{
     "brand": null, "source": "manual", "external_id": null,
     "serving_qty": 1, "serving_unit": "serving", "default_unit": "serving",
     "kcal": 999, "protein": 99, "carbs": 99, "fat": 99,
+    "sat_fat": 99, "fiber": 99, "sugar": 99, "sodium": 99, "cholesterol": 99,
     "updated_at": 3000,
     "deleted_at": null
   }]
