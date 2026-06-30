@@ -286,11 +286,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--surf2);color:var(--txt);padding:9px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:all .25s;z-index:300;white-space:nowrap;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* SYNC SETUP PANEL */
-#sync-setup-panel{border-bottom:2px solid var(--acc);padding:16px;background:var(--surf)}
-.ssp-title{font-size:13px;font-weight:700;color:var(--acc2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-.ssp-log{font-size:11px;font-family:monospace;color:var(--txt2);background:var(--surf2);border-radius:8px;padding:10px;max-height:120px;overflow-y:auto;margin-top:10px;white-space:pre-wrap;display:none}
-.ssp-log.vis{display:block}
 /* SYNC STATUS DOT */
 #sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;vertical-align:middle;margin-left:5px;opacity:0;transition:background .3s,opacity .3s}
 #sync-dot.syncing{background:var(--acc2);opacity:1;animation:sync-pulse 1s ease-in-out infinite}
@@ -386,19 +381,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 
 <!-- HOME -->
 <div id="home" class="screen">
-  <div id="sync-setup-panel" style="display:none">
-    <div class="ssp-title">⚡ Sync Setup (one-time)</div>
-    <div class="fg" style="margin-bottom:8px">
-      <label class="fl">Sync URL</label>
-      <input class="fi" id="ssp-url" type="url" value="https://fuel-sync.ihnolbx.workers.dev/sync">
-    </div>
-    <div class="fg" style="margin-bottom:10px">
-      <label class="fl">Sync Token</label>
-      <input class="fi" id="ssp-token" type="password" placeholder="Bearer token">
-    </div>
-    <button class="btn btn-p" id="ssp-btn" onclick="doSeedFromPanel()" style="margin-top:0">Seed to Server</button>
-    <div class="ssp-log" id="ssp-log"></div>
-  </div>
   <div class="header">
     <div class="header-top">
       <div class="app-title">🔥 Fuel Ihno<span id="sync-dot"></span></div>
@@ -4036,191 +4018,8 @@ async function syncWithServer() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncWithServer(); });
 window.addEventListener('online', syncWithServer);
 
-// ─── SERVER SEED ─────────────────────────────────────────────────────────────
-// Before running seedToServer(), clear test data from D1 so returned counts
-// match local counts exactly:
-//
-//   npx wrangler d1 execute fuel --remote --command "DELETE FROM foods; DELETE FROM log_entries; DELETE FROM weight_entries; DELETE FROM settings; UPDATE sync_state SET current_rev = 0;"
-//
-async function seedToServer() {
-  if (localStorage.getItem('fuel_server_seeded')) {
-    console.log('[seed] Already seeded, skipping');
-    return;
-  }
-  const url   = localStorage.getItem('fuel_sync_url');
-  const token = localStorage.getItem('fuel_sync_token');
-  if (!url || !token) {
-    console.error('[seed] Set fuel_sync_url and fuel_sync_token in localStorage first');
-    return;
-  }
-
-  // ── Log entries ──────────────────────────────────────────────────────────
-  const log_entries = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k?.startsWith('fuel_log_')) continue;
-    const date = k.slice('fuel_log_'.length);
-    let dayLog;
-    try { dayLog = JSON.parse(localStorage.getItem(k)); } catch { continue; }
-    const midnight = new Date(date + 'T00:00:00').getTime();
-    for (let slot = 1; slot <= 6; slot++) {
-      for (const e of (dayLog[`meal${slot}`] || [])) {
-        log_entries.push({
-          id:           e.id,
-          local_date:   date,
-          logged_at:    midnight,
-          food_id:      e.foodId      ?? null,
-          food_name:    e.name,
-          qty:          e.servings,
-          unit:         e.servingUnit || 'serving',
-          kcal:         e.calories,
-          protein:      e.protein,
-          carbs:        e.carbs,
-          fat:          e.fat,
-          meal:         slot,
-          serving_size: e.servingSize ?? null,
-          updated_at:   midnight,
-          deleted_at:   null,
-        });
-      }
-    }
-  }
-
-  // ── Weight entries ────────────────────────────────────────────────────────
-  const weight_entries = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k?.startsWith('fuel_weight_')) continue;
-    const date = k.slice('fuel_weight_'.length);
-    let val;
-    try { val = JSON.parse(localStorage.getItem(k)); } catch { continue; }
-    if (!val || typeof val.lb !== 'number') continue;
-    const midnight = new Date(date + 'T00:00:00').getTime();
-    weight_entries.push({
-      id:           crypto.randomUUID(),
-      local_date:   date,
-      measured_at:  midnight,
-      weight_lbs:   val.lb,
-      body_fat_pct: null,
-      notes:        null,
-      updated_at:   midnight,
-      deleted_at:   null,
-    });
-  }
-
-  // ── Foods ─────────────────────────────────────────────────────────────────
-  const now   = Date.now();
-  const foods = loadDb().map(f => ({
-    id:           f.id,
-    name:         f.name,
-    brand:        f.brand        || null,
-    source:       f.source       || null,
-    external_id:  null,
-    serving_qty:  f.servingSize  ?? null,
-    serving_unit: f.servingUnit  || null,
-    default_unit: null,
-    kcal:         f.calories,
-    protein:      f.protein,
-    carbs:        f.carbs,
-    fat:          f.fat,
-    sat_fat:      f.saturatedFat ?? null,
-    fiber:        f.fiber        ?? null,
-    sugar:        f.sugar        ?? null,
-    sodium:       f.sodium       ?? null,
-    cholesterol:  f.cholesterol  ?? null,
-    updated_at:   now,
-    deleted_at:   null,
-  }));
-
-  // ── Settings ──────────────────────────────────────────────────────────────
-  const settings = [
-    { id: 'targets',        value: localStorage.getItem(SK.profiles) || JSON.stringify(DEFAULT_PROFILES) },
-    { id: 'meal_names',     value: localStorage.getItem('fuel_meal_names') },
-    { id: 'favorites',      value: localStorage.getItem('fuel_favs') },
-    { id: 'active_profile', value: JSON.stringify(localStorage.getItem(SK.profile) || 'bulk') },
-  ]
-    .filter(s => s.value != null)
-    .map(s => ({ ...s, updated_at: now, deleted_at: null }));
-
-  console.log(`[seed] log_entries: ${log_entries.length}`);
-  console.log(`[seed] weight_entries: ${weight_entries.length}`);
-  console.log(`[seed] foods: ${foods.length}`);
-  console.log(`[seed] settings: ${settings.length}`);
-
-  let resp;
-  try {
-    resp = await fetch(url, {
-      method:  'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ cursor: 0, changes: { foods, log_entries, weight_entries, settings } }),
-    });
-  } catch (err) {
-    console.error('[seed] Network error:', err);
-    return;
-  }
-
-  if (!resp.ok) {
-    console.error('[seed] Server error:', resp.status, await resp.text().catch(() => ''));
-    return;
-  }
-
-  let data;
-  try { data = await resp.json(); } catch (err) {
-    console.error('[seed] Failed to parse response:', err);
-    return;
-  }
-
-  const returned = data.changes || {};
-  const local    = { foods: foods.length, log_entries: log_entries.length, weight_entries: weight_entries.length, settings: settings.length };
-  let allMatch = true;
-  for (const t of ['foods', 'log_entries', 'weight_entries', 'settings']) {
-    const lc = local[t], sc = (returned[t] || []).length;
-    if (lc === sc) {
-      console.log(`[seed] ${t}: local=${lc} server=${sc} ✓`);
-    } else {
-      console.warn(`[seed] ${t}: local=${lc} server=${sc} MISMATCH`);
-      allMatch = false;
-    }
-  }
-
-  if (allMatch) {
-    localStorage.setItem('fuel_server_seeded', Date.now());
-    console.log('[seed] Seed complete.');
-  } else {
-    console.warn('[seed] Count mismatch — fuel_server_seeded NOT set. Investigate before re-running.');
-  }
-}
-
-function initSyncPanel() {
-  if (!localStorage.getItem('fuel_server_seeded'))
-    document.getElementById('sync-setup-panel').style.display = '';
-}
-
-async function doSeedFromPanel() {
-  const url   = document.getElementById('ssp-url').value.trim();
-  const token = document.getElementById('ssp-token').value.trim();
-  if (!url || !token) { toast('Enter URL and token'); return; }
-  localStorage.setItem('fuel_sync_url',   url);
-  localStorage.setItem('fuel_sync_token', token);
-  const btn   = document.getElementById('ssp-btn');
-  const logEl = document.getElementById('ssp-log');
-  btn.disabled = true; btn.textContent = 'Seeding…';
-  logEl.textContent = ''; logEl.classList.add('vis');
-  const orig = { log: console.log, warn: console.warn, error: console.error };
-  const append = (...a) => { logEl.textContent += a.join(' ') + '\n'; logEl.scrollTop = logEl.scrollHeight; };
-  console.log   = (...a) => { orig.log(...a);   append(...a); };
-  console.warn  = (...a) => { orig.warn(...a);  append(...a); };
-  console.error = (...a) => { orig.error(...a); append(...a); };
-  try { await seedToServer(); }
-  finally { console.log = orig.log; console.warn = orig.warn; console.error = orig.error;
-            btn.disabled = false; btn.textContent = 'Seed to Server'; }
-  if (localStorage.getItem('fuel_server_seeded'))
-    setTimeout(() => { document.getElementById('sync-setup-panel').style.display = 'none'; }, 2000);
-}
-
 // ─── INIT ────────────────────────────────────────────────────────────────────
 seedHistoryIfNeeded();
-initSyncPanel();
 seedWeightsIfNeeded();
 autoSummarize();
 renderHome();
