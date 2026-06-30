@@ -3755,6 +3755,161 @@ function performImport(mode){
   toast('Import complete!');
 }
 
+// ─── SERVER SEED ─────────────────────────────────────────────────────────────
+// Before running seedToServer(), clear test data from D1 so returned counts
+// match local counts exactly:
+//
+//   npx wrangler d1 execute fuel --remote --command "DELETE FROM foods; DELETE FROM log_entries; DELETE FROM weight_entries; DELETE FROM settings; UPDATE sync_state SET current_rev = 0;"
+//
+async function seedToServer() {
+  if (localStorage.getItem('fuel_server_seeded')) {
+    console.log('[seed] Already seeded, skipping');
+    return;
+  }
+  const url   = localStorage.getItem('fuel_sync_url');
+  const token = localStorage.getItem('fuel_sync_token');
+  if (!url || !token) {
+    console.error('[seed] Set fuel_sync_url and fuel_sync_token in localStorage first');
+    return;
+  }
+
+  // ── Log entries ──────────────────────────────────────────────────────────
+  const log_entries = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k?.startsWith('fuel_log_')) continue;
+    const date = k.slice('fuel_log_'.length);
+    let dayLog;
+    try { dayLog = JSON.parse(localStorage.getItem(k)); } catch { continue; }
+    const midnight = new Date(date + 'T00:00:00').getTime();
+    for (let slot = 1; slot <= 6; slot++) {
+      for (const e of (dayLog[`meal${slot}`] || [])) {
+        log_entries.push({
+          id:           e.id,
+          local_date:   date,
+          logged_at:    midnight,
+          food_id:      e.foodId      ?? null,
+          food_name:    e.name,
+          qty:          e.servings,
+          unit:         e.servingUnit || 'serving',
+          kcal:         e.calories,
+          protein:      e.protein,
+          carbs:        e.carbs,
+          fat:          e.fat,
+          meal:         slot,
+          serving_size: e.servingSize ?? null,
+          updated_at:   midnight,
+          deleted_at:   null,
+        });
+      }
+    }
+  }
+
+  // ── Weight entries ────────────────────────────────────────────────────────
+  const weight_entries = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k?.startsWith('fuel_weight_')) continue;
+    const date = k.slice('fuel_weight_'.length);
+    let val;
+    try { val = JSON.parse(localStorage.getItem(k)); } catch { continue; }
+    if (!val || typeof val.lb !== 'number') continue;
+    const midnight = new Date(date + 'T00:00:00').getTime();
+    weight_entries.push({
+      id:           crypto.randomUUID(),
+      local_date:   date,
+      measured_at:  midnight,
+      weight_lbs:   val.lb,
+      body_fat_pct: null,
+      notes:        null,
+      updated_at:   midnight,
+      deleted_at:   null,
+    });
+  }
+
+  // ── Foods ─────────────────────────────────────────────────────────────────
+  const now   = Date.now();
+  const foods = loadDb().map(f => ({
+    id:           f.id,
+    name:         f.name,
+    brand:        f.brand        || null,
+    source:       f.source       || null,
+    external_id:  null,
+    serving_qty:  f.servingSize  ?? null,
+    serving_unit: f.servingUnit  || null,
+    default_unit: null,
+    kcal:         f.calories,
+    protein:      f.protein,
+    carbs:        f.carbs,
+    fat:          f.fat,
+    sat_fat:      f.saturatedFat ?? null,
+    fiber:        f.fiber        ?? null,
+    sugar:        f.sugar        ?? null,
+    sodium:       f.sodium       ?? null,
+    cholesterol:  f.cholesterol  ?? null,
+    updated_at:   now,
+    deleted_at:   null,
+  }));
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  const settings = [
+    { id: 'targets',        value: localStorage.getItem(SK.profiles) || JSON.stringify(DEFAULT_PROFILES) },
+    { id: 'meal_names',     value: localStorage.getItem('fuel_meal_names') },
+    { id: 'favorites',      value: localStorage.getItem('fuel_favs') },
+    { id: 'active_profile', value: JSON.stringify(localStorage.getItem(SK.profile) || 'bulk') },
+  ]
+    .filter(s => s.value != null)
+    .map(s => ({ ...s, updated_at: now, deleted_at: null }));
+
+  console.log(`[seed] log_entries: ${log_entries.length}`);
+  console.log(`[seed] weight_entries: ${weight_entries.length}`);
+  console.log(`[seed] foods: ${foods.length}`);
+  console.log(`[seed] settings: ${settings.length}`);
+
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ cursor: 0, changes: { foods, log_entries, weight_entries, settings } }),
+    });
+  } catch (err) {
+    console.error('[seed] Network error:', err);
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('[seed] Server error:', resp.status, await resp.text().catch(() => ''));
+    return;
+  }
+
+  let data;
+  try { data = await resp.json(); } catch (err) {
+    console.error('[seed] Failed to parse response:', err);
+    return;
+  }
+
+  const returned = data.changes || {};
+  const local    = { foods: foods.length, log_entries: log_entries.length, weight_entries: weight_entries.length, settings: settings.length };
+  let allMatch = true;
+  for (const t of ['foods', 'log_entries', 'weight_entries', 'settings']) {
+    const lc = local[t], sc = (returned[t] || []).length;
+    if (lc === sc) {
+      console.log(`[seed] ${t}: local=${lc} server=${sc} ✓`);
+    } else {
+      console.warn(`[seed] ${t}: local=${lc} server=${sc} MISMATCH`);
+      allMatch = false;
+    }
+  }
+
+  if (allMatch) {
+    localStorage.setItem('fuel_server_seeded', Date.now());
+    console.log('[seed] Seed complete.');
+  } else {
+    console.warn('[seed] Count mismatch — fuel_server_seeded NOT set. Investigate before re-running.');
+  }
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 seedHistoryIfNeeded();
 seedWeightsIfNeeded();
