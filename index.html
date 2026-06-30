@@ -291,6 +291,12 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .ssp-title{font-size:13px;font-weight:700;color:var(--acc2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
 .ssp-log{font-size:11px;font-family:monospace;color:var(--txt2);background:var(--surf2);border-radius:8px;padding:10px;max-height:120px;overflow-y:auto;margin-top:10px;white-space:pre-wrap;display:none}
 .ssp-log.vis{display:block}
+/* SYNC STATUS DOT */
+#sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;vertical-align:middle;margin-left:5px;opacity:0;transition:background .3s,opacity .3s}
+#sync-dot.syncing{background:var(--acc2);opacity:1;animation:sync-pulse 1s ease-in-out infinite}
+#sync-dot.ok{background:var(--pro);opacity:1}
+#sync-dot.err{background:var(--red);opacity:1}
+@keyframes sync-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
@@ -395,7 +401,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
   </div>
   <div class="header">
     <div class="header-top">
-      <div class="app-title">🔥 Fuel Ihno</div>
+      <div class="app-title">🔥 Fuel Ihno<span id="sync-dot"></span></div>
       <div style="display:flex;gap:8px">
         <button class="icon-btn" onclick="gotoWeight()" aria-label="Weight" title="Weight" style="font-size:17px;line-height:1">📉</button>
         <button class="icon-btn" onclick="gotoHistory()" aria-label="History" title="History" style="font-size:17px">📅</button>
@@ -966,6 +972,7 @@ function toggleFavByKey(btn){
   if(!key) return;
   if(favs.has(key)) favs.delete(key); else favs.add(key);
   saveFavs();
+  queueSettingForSync('favorites',JSON.stringify([...favs]));
   combinedFoodsCache = null;
   // Update every rendered star for this food
   document.querySelectorAll('[data-fav-key]').forEach(el=>{
@@ -1492,6 +1499,7 @@ function renderProfCard(k){
 function setProfile(k){
   activeKey=k;
   saveActiveProfile(k);
+  queueSettingForSync('active_profile',JSON.stringify(k));
   renderHome();
   // Update toggle highlight without full re-render
   document.querySelectorAll('.profile-btn').forEach((b,i)=>b.classList.toggle('active',PROFILE_KEYS[i]===k));
@@ -1503,8 +1511,10 @@ function toggleMeal(n){
 
 function delEntry(id,n){
   const mk=`meal${n}`;
+  const entry=(log[mk]||[]).find(e=>e.id===id);
   log[mk]=(log[mk]||[]).filter(e=>e.id!==id);
   saveLog(viewDate,log);
+  if(entry) queueForSync('log_entries',entryToSyncRow(entry,n,viewDate,Date.now(),true));
   renderHome();
 }
 
@@ -1646,6 +1656,7 @@ function saveEditEntry(){
   editEntry.fat       = r1(editFood.fat       * newServings);
   editEntry.calories  = r1(calcCal(editEntry.protein, editEntry.carbs, editEntry.fat));
   saveLog(viewDate, log);
+  queueForSync('log_entries',entryToSyncRow(editEntry,editMeal,viewDate,Date.now(),false));
   closeSheet('edit-sheet');
   renderHome();
 }
@@ -1657,13 +1668,16 @@ function deleteEditEntry(){
 }
 
 function addToLog(food,qty,mealNum){
+  const now=Date.now();
   // Auto-save external foods to personal db on first log
   if((food.source==='usda'||food.source==='off')&&!db.find(f=>f.id===food.id)){
-    db.push({id:food.id,type:'food',name:food.name,brand:food.brand,
+    const autoSaved={id:food.id,type:'food',name:food.name,brand:food.brand,
       servingSize:food.servingSize,servingUnit:food.servingUnit,
-      calories:food.calories,protein:food.protein,carbs:food.carbs,fat:food.fat});
+      calories:food.calories,protein:food.protein,carbs:food.carbs,fat:food.fat};
+    db.push(autoSaved);
     saveDb(db);
     combinedFoodsCache=null;
+    queueForSync('foods',foodToSyncRow(autoSaved,now));
   }
   trackFoodUsed(food.id||null);
   const entry={
@@ -1683,6 +1697,7 @@ function addToLog(food,qty,mealNum){
   if(!log[mk])log[mk]=[];
   log[mk].push(entry);
   saveLog(viewDate,log);
+  queueForSync('log_entries',entryToSyncRow(entry,mealNum,viewDate,now,false));
   renderHome();
   toast(`Added ${food.name} to ${getMealNames()[`meal${mealNum}`]||`Meal #${mealNum}`}`);
 }
@@ -2029,6 +2044,7 @@ function doQuickAdd(){
   if(!log[mk])log[mk]=[];
   log[mk].push(entry);
   saveLog(viewDate,log);
+  queueForSync('log_entries',entryToSyncRow(entry,addMeal,viewDate,Date.now(),false));
   renderHome();
   closeSheet('add-sheet');
   toast(`Added ${name}`);
@@ -2056,6 +2072,7 @@ function doCreateFood(){
     protein:pro, carbs:carb, fat,
   };
   db.push(food);saveDb(db);
+  queueForSync('foods',foodToSyncRow(food,Date.now()));
   toast(`Saved ${name} to database`);
   closeSheet('add-sheet');
   ['c-name','c-brand','c-size','c-unit','c-cal','c-cal-m','c-pro','c-carb','c-fat','c-satfat','c-fiber','c-sugar','c-sodium','c-chol']
@@ -2430,14 +2447,17 @@ function confirmAI(){
   if(!aiItems.length){toast('No items to add');return;}
   const mk=`meal${aiMeal}`;
   if(!log[mk])log[mk]=[];
+  const now=Date.now();
   aiItems.forEach(it=>{
     trackFoodUsed(it.matchedId||null);
-    log[mk].push({
+    const entry={
       id:uid(),foodId:it.matchedId||null,
       name:it.name,brand:'',
       servings:it.servings,servingSize:null,servingUnit:null,
       calories:it.calories,protein:it.protein,carbs:it.carbs,fat:it.fat,
-    });
+    };
+    log[mk].push(entry);
+    queueForSync('log_entries',entryToSyncRow(entry,aiMeal,viewDate,now,false));
   });
   saveLog(viewDate,log);
   renderHome();
@@ -2458,6 +2478,7 @@ function updateProf(k,field,v){
   if(!isNaN(n)&&n>=0){
     profiles[k][field]=n;
     saveProfiles(profiles);
+    queueSettingForSync('targets',JSON.stringify(profiles));
     if(k===activeKey)renderHome();
   }
 }
@@ -3075,7 +3096,15 @@ function logWeightEntry(){
   if(isNaN(lb)||lb<50||lb>500){toast('Enter a valid weight (50–500 lb)');return;}
   if(wtLogDate>todayStr()){toast('Cannot log a future date');return;}
   const existing=loadWeight(wtLogDate);
-  saveWeight(wtLogDate, lb);
+  const now=Date.now();
+  const wtId=existing?.id||crypto.randomUUID();
+  lsSet(WK+wtLogDate,{lb,id:wtId,updated_at:now});
+  queueForSync('weight_entries',{
+    id:wtId,local_date:wtLogDate,
+    measured_at:new Date(wtLogDate+'T12:00:00').getTime(),
+    weight_lbs:lb,body_fat_pct:null,notes:null,
+    updated_at:now,deleted_at:null,
+  });
   toast(existing?'Weight updated':'Weight logged!');
   renderWeightScreen();
 }
@@ -3204,11 +3233,14 @@ function renameMeal(n){
   if(val===null) return;
   names[`meal${n}`]=val.trim()||cur;
   saveMealNames(names);
+  queueSettingForSync('meal_names',JSON.stringify(names));
   renderHome();
 }
 function confirmDeleteMeal(n){
   const mName=getMealNames()[`meal${n}`]||`Meal #${n}`;
   if(!confirm(`Delete all items from ${mName}?`)) return;
+  const now=Date.now();
+  (log[`meal${n}`]||[]).forEach(e=>queueForSync('log_entries',entryToSyncRow(e,n,viewDate,now,true)));
   log[`meal${n}`]=[];
   saveLog(viewDate,log);
   closeSheet('meal-menu-sheet');
@@ -3229,8 +3261,10 @@ function doQuickAddModal(){
   const fat  = parseFloat(document.getElementById('qa-fat').value)  || 0;
   const mk   = `meal${qaTargetMeal}`;
   if(!log[mk]) log[mk]=[];
-  log[mk].push({id:uid(),foodId:null,name,brand:'',servings:1,servingSize:null,servingUnit:null,calories:r1(calcCal(pro,carb,fat)),protein:pro,carbs:carb,fat});
+  const entry={id:uid(),foodId:null,name,brand:'',servings:1,servingSize:null,servingUnit:null,calories:r1(calcCal(pro,carb,fat)),protein:pro,carbs:carb,fat};
+  log[mk].push(entry);
   saveLog(viewDate,log);
+  queueForSync('log_entries',entryToSyncRow(entry,qaTargetMeal,viewDate,Date.now(),false));
   closeModal('qa-modal');
   renderHome();
   toast(`Added to ${getMealNames()[`meal${qaTargetMeal}`]||'Meal #'+qaTargetMeal}`);
@@ -3404,10 +3438,13 @@ function doCopyMeal(){
     if(!confirm(`These slots already have items:\n\n${lines}\n\nOverwrite?`)) return;
   }
   // Perform copy (replace destination slot)
+  const cpNow=Date.now();
   for(const ds of cpDestDates){
     const dl = loadLog(ds);
     for(const [mk,items] of Object.entries(toCopy)){
+      const mealNum=parseInt(mk.replace('meal',''),10);
       dl[mk] = items.map(e=>({...e,id:uid()}));
+      dl[mk].forEach(e=>queueForSync('log_entries',entryToSyncRow(e,mealNum,ds,cpNow,false)));
     }
     saveLog(ds,dl);
   }
@@ -3774,6 +3811,231 @@ function performImport(mode){
   toast('Import complete!');
 }
 
+// ─── SYNC ────────────────────────────────────────────────────────────────────
+
+function queueForSync(table, row) {
+  const q = lsGet('fuel_sync_pending', { foods: [], log_entries: [], weight_entries: [], settings: [] });
+  if (!q[table]) q[table] = [];
+  const idx = q[table].findIndex(r => r.id === row.id);
+  if (idx >= 0) q[table][idx] = row; else q[table].push(row);
+  lsSet('fuel_sync_pending', q);
+  scheduledSync();
+}
+
+function entryToSyncRow(entry, mealNum, date, updatedAt, isDeleted) {
+  return {
+    id:           entry.id,
+    local_date:   date,
+    meal:         mealNum,
+    logged_at:    new Date(date + 'T00:00:00').getTime(),
+    food_id:      entry.foodId ?? null,
+    food_name:    entry.name,
+    qty:          entry.servings,
+    serving_size: entry.servingSize ?? null,
+    unit:         entry.servingUnit || 'serving',
+    kcal:         entry.calories,
+    protein:      entry.protein,
+    carbs:        entry.carbs,
+    fat:          entry.fat,
+    updated_at:   updatedAt,
+    deleted_at:   isDeleted ? updatedAt : null,
+  };
+}
+
+function foodToSyncRow(food, updatedAt) {
+  return {
+    id:           food.id,
+    name:         food.name,
+    brand:        food.brand || null,
+    source:       food.source || null,
+    external_id:  food.external_id || null,
+    serving_qty:  food.servingSize ?? null,
+    serving_unit: food.servingUnit || null,
+    default_unit: null,
+    kcal:         food.calories,
+    protein:      food.protein,
+    carbs:        food.carbs,
+    fat:          food.fat,
+    sat_fat:      food.saturatedFat ?? null,
+    fiber:        food.fiber ?? null,
+    sugar:        food.sugar ?? null,
+    sodium:       food.sodium ?? null,
+    cholesterol:  food.cholesterol ?? null,
+    updated_at:   updatedAt,
+    deleted_at:   null,
+  };
+}
+
+function queueSettingForSync(id, jsonValue) {
+  const now = Date.now();
+  const meta = lsGet('fuel_settings_meta', {});
+  meta[id] = now;
+  lsSet('fuel_settings_meta', meta);
+  queueForSync('settings', { id, value: jsonValue, updated_at: now, deleted_at: null });
+}
+
+let _syncTimer = null;
+let _syncInFlight = false;
+
+function scheduledSync() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(syncWithServer, 5000);
+}
+
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = status;
+  if (status === 'ok') setTimeout(() => { if (dot.className === 'ok') dot.className = 'idle'; }, 3000);
+}
+
+function applyServerFoods(rows) {
+  let changed = false;
+  for (const row of rows) {
+    const idx = db.findIndex(f => f.id === row.id);
+    const existing = idx >= 0 ? db[idx] : null;
+    if (row.updated_at < (existing?.updated_at || 0)) continue;
+    if (row.deleted_at) {
+      if (idx >= 0) { db.splice(idx, 1); changed = true; }
+    } else {
+      const f = {
+        id: row.id, name: row.name, brand: row.brand || '',
+        source: row.source, external_id: row.external_id,
+        servingSize: row.serving_qty, servingUnit: row.serving_unit,
+        calories: row.kcal, protein: row.protein, carbs: row.carbs, fat: row.fat,
+        saturatedFat: row.sat_fat, fiber: row.fiber, sugar: row.sugar,
+        sodium: row.sodium, cholesterol: row.cholesterol,
+        updated_at: row.updated_at,
+      };
+      if (idx >= 0) db[idx] = f; else db.push(f);
+      changed = true;
+    }
+  }
+  if (changed) { saveDb(db); combinedFoodsCache = null; }
+}
+
+function applyServerLogEntries(rows) {
+  const byDate = {};
+  for (const row of rows) {
+    (byDate[row.local_date] = byDate[row.local_date] || []).push(row);
+  }
+  for (const [date, dateRows] of Object.entries(byDate)) {
+    const dayLog = loadLog(date);
+    let changed = false;
+    for (const row of dateRows) {
+      // Search all slots for existing entry by id
+      let existing = null, existingSlot = null, existingIdx = -1;
+      for (let s = 1; s <= 6; s++) {
+        const sk = `meal${s}`;
+        const i = (dayLog[sk] || []).findIndex(e => e.id === row.id);
+        if (i >= 0) { existing = dayLog[sk][i]; existingSlot = sk; existingIdx = i; break; }
+      }
+      if (row.updated_at < (existing?.updated_at || 0)) continue;
+      const targetSlot = `meal${row.meal}`;
+      if (row.deleted_at) {
+        if (existingSlot) { dayLog[existingSlot].splice(existingIdx, 1); changed = true; }
+      } else {
+        // Move from old slot if slot changed
+        if (existingSlot && existingSlot !== targetSlot) dayLog[existingSlot].splice(existingIdx, 1);
+        if (!dayLog[targetSlot]) dayLog[targetSlot] = [];
+        const localEntry = {
+          id: row.id, foodId: row.food_id, name: row.food_name, brand: '',
+          servings: row.qty, servingSize: row.serving_size, servingUnit: row.unit,
+          calories: row.kcal, protein: row.protein, carbs: row.carbs, fat: row.fat,
+          updated_at: row.updated_at,
+        };
+        const tIdx = dayLog[targetSlot].findIndex(e => e.id === row.id);
+        if (tIdx >= 0) dayLog[targetSlot][tIdx] = localEntry; else dayLog[targetSlot].push(localEntry);
+        changed = true;
+      }
+    }
+    if (changed) {
+      saveLog(date, dayLog);
+      if (date === viewDate) { log = dayLog; renderHome(); }
+    }
+  }
+}
+
+function applyServerWeightEntries(rows) {
+  for (const row of rows) {
+    const existing = lsGet(WK + row.local_date, null);
+    if (row.updated_at < (existing?.updated_at || 0)) continue;
+    if (row.deleted_at) {
+      localStorage.removeItem(WK + row.local_date);
+    } else {
+      lsSet(WK + row.local_date, { lb: row.weight_lbs, id: row.id, updated_at: row.updated_at });
+    }
+  }
+}
+
+function applyServerSettings(rows) {
+  const keyMap = {
+    targets: SK.profiles, meal_names: 'fuel_meal_names',
+    favorites: 'fuel_favs', active_profile: SK.profile,
+  };
+  const meta = lsGet('fuel_settings_meta', {});
+  for (const row of rows) {
+    const localKey = keyMap[row.id];
+    if (!localKey || row.deleted_at || row.value == null) continue;
+    if (row.updated_at < (meta[row.id] || 0)) continue;
+    localStorage.setItem(localKey, row.value);
+    meta[row.id] = row.updated_at;
+    if (row.id === 'targets')       profiles  = JSON.parse(row.value);
+    if (row.id === 'favorites')     favs      = new Set(JSON.parse(row.value || '[]'));
+    if (row.id === 'active_profile') activeKey = JSON.parse(row.value);
+  }
+  lsSet('fuel_settings_meta', meta);
+}
+
+function applyServerChanges(changes) {
+  if (changes.foods?.length)          applyServerFoods(changes.foods);
+  if (changes.log_entries?.length)    applyServerLogEntries(changes.log_entries);
+  if (changes.weight_entries?.length) applyServerWeightEntries(changes.weight_entries);
+  if (changes.settings?.length)       applyServerSettings(changes.settings);
+}
+
+async function syncWithServer() {
+  const url   = localStorage.getItem('fuel_sync_url');
+  const token = localStorage.getItem('fuel_sync_token');
+  if (!url || !token) return;
+  if (_syncInFlight) { scheduledSync(); return; }
+
+  _syncInFlight = true;
+  setSyncStatus('syncing');
+
+  const cursor  = parseInt(localStorage.getItem('fuel_sync_cursor') || '0', 10);
+  const pending = lsGet('fuel_sync_pending', {});
+  const changes = {};
+  for (const t of ['foods', 'log_entries', 'weight_entries', 'settings']) {
+    if ((pending[t] || []).length) changes[t] = pending[t];
+  }
+
+  let data;
+  try {
+    const resp = await fetch(url, {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ cursor, changes }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    data = await resp.json();
+  } catch {
+    _syncInFlight = false;
+    setSyncStatus('err');
+    return;
+  }
+
+  applyServerChanges(data.changes || {});
+  if (typeof data.cursor === 'number') localStorage.setItem('fuel_sync_cursor', String(data.cursor));
+  lsSet('fuel_sync_pending', { foods: [], log_entries: [], weight_entries: [], settings: [] });
+
+  _syncInFlight = false;
+  setSyncStatus('ok');
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncWithServer(); });
+window.addEventListener('online', syncWithServer);
+
 // ─── SERVER SEED ─────────────────────────────────────────────────────────────
 // Before running seedToServer(), clear test data from D1 so returned counts
 // match local counts exactly:
@@ -3964,6 +4226,7 @@ autoSummarize();
 renderHome();
 initSwipeDismiss();
 initWeightSwipe();
+syncWithServer();
 </script>
 </body>
 </html>
