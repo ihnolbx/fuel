@@ -5,7 +5,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "fuel"
-database_id = "FILL_IN_AFTER: wrangler d1 create fuel"
+database_id = "8d8c2df1-9abf-4605-9d2e-36bbc7340c00"
 
 [vars]
 PAGES_ORIGIN = "https://ihnolbx.github.io"
