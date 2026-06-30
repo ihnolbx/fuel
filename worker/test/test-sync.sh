@@ -36,10 +36,13 @@ sync() {
     -d "{\"cursor\":$cursor,\"changes\":$changes}"
 }
 
+# Capture baseline cursor before any test writes so assertions stay relative.
+BASELINE=$(sync 0 '{}' | jq -r '.cursor')
+
 echo
 echo "=== 1. Push then pull round-trip ==="
 
-R=$(sync 0 '{
+R=$(sync $BASELINE '{
   "foods": [{
     "id": "food-aaa",
     "name": "Test Banana",
@@ -62,16 +65,16 @@ NEW_CURSOR=$(echo "$R" | jq -r '.cursor')
 FOOD_BACK=$(echo "$R" | jq -r '.changes.foods[0].id // "none"')
 FOOD_REV=$(echo "$R" | jq -r '.changes.foods[0].rev // "none"')
 
-check "cursor advanced from 0" "$NEW_CURSOR" "1"
+check "cursor advanced from baseline" "$NEW_CURSOR" "$((BASELINE+1))"
 check "pushed food returned in same response" "$FOOD_BACK" "food-aaa"
-check "returned row has rev=1" "$FOOD_REV" "1"
+check "returned row rev matches new cursor" "$FOOD_REV" "$NEW_CURSOR"
 
-# Pull from cursor=1 — should be empty
-R2=$(sync 1 '{}')
+# Pull from NEW_CURSOR — should be empty
+R2=$(sync $NEW_CURSOR '{}')
 FOOD_COUNT=$(echo "$R2" | jq '.changes.foods | length')
 CURSOR2=$(echo "$R2" | jq -r '.cursor')
 check "pull from current cursor returns no foods" "$FOOD_COUNT" "0"
-check "pure-pull does not advance cursor" "$CURSOR2" "1"
+check "pure-pull does not advance cursor" "$CURSOR2" "$NEW_CURSOR"
 
 
 echo
@@ -81,14 +84,14 @@ echo "=== 2. Two-device reconciliation ==="
 # Device B starts at cursor=0.
 
 # B pulls — should see food-aaa
-RB1=$(sync 0 '{}')
+RB1=$(sync $BASELINE '{}')
 B_CURSOR=$(echo "$RB1" | jq -r '.cursor')
 B_FOOD=$(echo "$RB1" | jq -r '.changes.foods[0].id // "none"')
 check "B sees A's food on first pull" "$B_FOOD" "food-aaa"
-check "B cursor is now 1" "$B_CURSOR" "1"
+check "B cursor matches A cursor" "$B_CURSOR" "$NEW_CURSOR"
 
 # B pushes a weight entry and a log entry (covers meal + serving_size columns)
-RB2=$(sync 1 '{
+RB2=$(sync $NEW_CURSOR '{
   "weight_entries": [{
     "id": "wt-bbb",
     "local_date": "2026-01-01",
@@ -115,25 +118,25 @@ B_CURSOR2=$(echo "$RB2" | jq -r '.cursor')
 WT_BACK=$(echo "$RB2" | jq -r '.changes.weight_entries[0].id // "none"')
 LOG_BACK=$(echo "$RB2" | jq -r '.changes.log_entries[0].id // "none"')
 LOG_MEAL=$(echo "$RB2" | jq -r '.changes.log_entries[0].meal // "none"')
-check "B cursor after push is 2" "$B_CURSOR2" "2"
+check "B cursor advanced after push" "$B_CURSOR2" "$((NEW_CURSOR+1))"
 check "B sees its own weight entry in response" "$WT_BACK" "wt-bbb"
 check "B sees its own log entry in response" "$LOG_BACK" "log-bbb"
 check "log entry meal slot round-trips correctly" "$LOG_MEAL" "2"
 
-# A pulls from cursor=1 — should see B's weight entry and log entry
-RA2=$(sync 1 '{}')
+# A pulls from NEW_CURSOR — should see B's weight entry and log entry
+RA2=$(sync $NEW_CURSOR '{}')
 A_WT=$(echo "$RA2" | jq -r '.changes.weight_entries[0].id // "none"')
 A_LOG=$(echo "$RA2" | jq -r '.changes.log_entries[0].id // "none"')
 A_CURSOR2=$(echo "$RA2" | jq -r '.cursor')
 check "A sees B's weight entry" "$A_WT" "wt-bbb"
 check "A sees B's log entry" "$A_LOG" "log-bbb"
-check "A cursor is now 2" "$A_CURSOR2" "2"
+check "A cursor matches B" "$A_CURSOR2" "$B_CURSOR2"
 
 
 echo
 echo "=== 3. Conflict: last-write-wins on updated_at ==="
 # Push food-ccc with updated_at=5000 (the "noon laptop edit")
-sync 2 '{
+sync $B_CURSOR2 '{
   "foods": [{
     "id": "food-ccc",
     "name": "Conflict Food",
@@ -148,7 +151,7 @@ sync 2 '{
 
 # Now push same id with updated_at=3000 (the "9am phone edit that synced late")
 # This should LOSE — existing row has updated_at=5000 which is newer.
-sync 3 '{
+sync $((B_CURSOR2+1)) '{
   "foods": [{
     "id": "food-ccc",
     "name": "Conflict Food STALE",
@@ -161,8 +164,8 @@ sync 3 '{
   }]
 }' > /dev/null
 
-# Pull from cursor=2 to see what's actually stored
-RC=$(sync 2 '{}')
+# Pull from B_CURSOR2 to see what's actually stored
+RC=$(sync $B_CURSOR2 '{}')
 WINNER_NAME=$(echo "$RC" | jq -r '[.changes.foods[] | select(.id=="food-ccc")] | last | .name')
 WINNER_KCAL=$(echo "$RC" | jq -r '[.changes.foods[] | select(.id=="food-ccc")] | last | .kcal')
 
@@ -183,8 +186,6 @@ sync "$FINAL_CURSOR" '{
     "deleted_at": 9001
   }]
 }' > /dev/null
-
-NEW_C=$((FINAL_CURSOR + 1))
 
 # Pull — tombstone row must come back with deleted_at set
 RD=$(sync "$FINAL_CURSOR" '{}')
