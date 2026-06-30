@@ -286,6 +286,12 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--surf2);color:var(--txt);padding:9px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:all .25s;z-index:300;white-space:nowrap;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* SYNC SETUP PANEL */
+#sync-setup-panel{border-bottom:2px solid var(--acc);padding:16px;background:var(--surf)}
+.ssp-title{font-size:13px;font-weight:700;color:var(--acc2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.ssp-log{font-size:11px;font-family:monospace;color:var(--txt2);background:var(--surf2);border-radius:8px;padding:10px;max-height:120px;overflow-y:auto;margin-top:10px;white-space:pre-wrap;display:none}
+.ssp-log.vis{display:block}
+
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 
@@ -374,6 +380,19 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 
 <!-- HOME -->
 <div id="home" class="screen">
+  <div id="sync-setup-panel" style="display:none">
+    <div class="ssp-title">⚡ Sync Setup (one-time)</div>
+    <div class="fg" style="margin-bottom:8px">
+      <label class="fl">Sync URL</label>
+      <input class="fi" id="ssp-url" type="url" value="https://fuel-sync.ihnolbx.workers.dev/sync">
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label class="fl">Sync Token</label>
+      <input class="fi" id="ssp-token" type="password" placeholder="Bearer token">
+    </div>
+    <button class="btn btn-p" id="ssp-btn" onclick="doSeedFromPanel()" style="margin-top:0">Seed to Server</button>
+    <div class="ssp-log" id="ssp-log"></div>
+  </div>
   <div class="header">
     <div class="header-top">
       <div class="app-title">🔥 Fuel Ihno</div>
@@ -3910,8 +3929,36 @@ async function seedToServer() {
   }
 }
 
+function initSyncPanel() {
+  if (!localStorage.getItem('fuel_server_seeded'))
+    document.getElementById('sync-setup-panel').style.display = '';
+}
+
+async function doSeedFromPanel() {
+  const url   = document.getElementById('ssp-url').value.trim();
+  const token = document.getElementById('ssp-token').value.trim();
+  if (!url || !token) { toast('Enter URL and token'); return; }
+  localStorage.setItem('fuel_sync_url',   url);
+  localStorage.setItem('fuel_sync_token', token);
+  const btn   = document.getElementById('ssp-btn');
+  const logEl = document.getElementById('ssp-log');
+  btn.disabled = true; btn.textContent = 'Seeding…';
+  logEl.textContent = ''; logEl.classList.add('vis');
+  const orig = { log: console.log, warn: console.warn, error: console.error };
+  const append = (...a) => { logEl.textContent += a.join(' ') + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+  console.log   = (...a) => { orig.log(...a);   append(...a); };
+  console.warn  = (...a) => { orig.warn(...a);  append(...a); };
+  console.error = (...a) => { orig.error(...a); append(...a); };
+  try { await seedToServer(); }
+  finally { console.log = orig.log; console.warn = orig.warn; console.error = orig.error;
+            btn.disabled = false; btn.textContent = 'Seed to Server'; }
+  if (localStorage.getItem('fuel_server_seeded'))
+    setTimeout(() => { document.getElementById('sync-setup-panel').style.display = 'none'; }, 2000);
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 seedHistoryIfNeeded();
+initSyncPanel();
 seedWeightsIfNeeded();
 autoSummarize();
 renderHome();
