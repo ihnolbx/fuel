@@ -1078,7 +1078,9 @@ function normalizeOFF(item){
 }
 async function searchUSDA(q,signal,page=1){
   window._usdaFirstLogged=false;
-  const url=`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${USDA_API_KEY}&pageSize=25&pageNumber=${page}`;
+  const key=(typeof USDA_API_KEY!=='undefined'&&USDA_API_KEY)?USDA_API_KEY:'';
+  if(!key){console.warn('[USDA] no API key — skipping USDA search');return [];}
+  const url=`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&api_key=${key}&pageSize=25&pageNumber=${page}`;
   console.log('[USDA] fetch:', url);
   try{
     const r=await fetch(url,{signal});
@@ -1161,7 +1163,9 @@ function dedupeExternal(results){
 }
 async function fetchExternalPage(q,signal,page){
   console.log('[search] external for:', q, 'page:', page);
-  const [a,b]=await Promise.all([searchUSDA(q,signal,page),searchOFF(q,signal,page)]);
+  const [ra,rb]=await Promise.allSettled([searchUSDA(q,signal,page),searchOFF(q,signal,page)]);
+  const a=ra.status==='fulfilled'?ra.value:(console.warn('[USDA] rejected:',ra.reason),[]);
+  const b=rb.status==='fulfilled'?rb.value:(console.warn('[OFF] rejected:',rb.reason),[]);
   if(signal?.aborted){console.log('[search] aborted');return null;}
   const rawCount=(a?.length||0)+(b?.length||0);
   const combined=[...(a||[]),...(b||[])];
