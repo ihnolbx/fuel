@@ -887,7 +887,7 @@ function dayTotals(){
   for(let i=1;i<=6;i++){const m=mealTotals(i);t.calories+=m.calories;t.protein+=m.protein;t.carbs+=m.carbs;t.fat+=m.fat;}
   return t;
 }
-function activeProfile(){return profiles[activeKey];}
+function activeProfile(){return profiles[activeKey]||profiles[PROFILE_KEYS.find(k=>profiles[k])]||DEFAULT_PROFILES[activeKey]||DEFAULT_PROFILES.bulk;}
 
 function toast(msg){
   const el=document.getElementById('toast');
@@ -3960,11 +3960,15 @@ function applyServerSettings(rows) {
     const localKey = keyMap[row.id];
     if (!localKey || row.deleted_at || row.value == null) continue;
     if (row.updated_at < (meta[row.id] || 0)) continue;
-    localStorage.setItem(localKey, row.value);
     meta[row.id] = row.updated_at;
     if (row.id === 'targets')       profiles  = JSON.parse(row.value);
     if (row.id === 'favorites')     favs      = new Set(JSON.parse(row.value || '[]'));
-    if (row.id === 'active_profile') activeKey = JSON.parse(row.value);
+    if (row.id === 'active_profile') {
+      activeKey = JSON.parse(row.value);
+      localStorage.setItem(localKey, activeKey);   // raw string, matches loadActiveProfile()
+    } else {
+      localStorage.setItem(localKey, row.value);
+    }
   }
   lsSet('fuel_settings_meta', meta);
 }
