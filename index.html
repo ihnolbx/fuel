@@ -166,7 +166,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 /* SEARCH */
 .search-wrap{position:relative;margin-bottom:12px}
 .search-ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:15px;pointer-events:none}
-.search-in{width:100%;padding:12px 14px 12px 38px;background:var(--surf2);border:1px solid var(--brd);border-radius:12px;color:var(--txt);font-size:15px;outline:none;font-family:inherit}
+.search-in{width:100%;padding:12px 14px 12px 38px;background:var(--surf2);border:1px solid var(--brd);border-radius:12px;color:var(--txt);font-size:15px;outline:none;font-family:inherit;touch-action:manipulation}
 .search-in::placeholder{color:var(--txt3)}
 .search-in:focus{border-color:var(--acc2)}
 .sr-wrap{position:relative;overflow:hidden;border-radius:10px}
@@ -487,7 +487,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     <div class="tab-p on" id="tab-search">
       <div class="search-wrap">
         <span class="search-ico">⌕</span>
-        <input class="search-in" id="search-in" type="search" placeholder="Search foods and recipes…" autocomplete="off" autocorrect="off">
+        <input class="search-in" id="search-in" type="text" placeholder="Search foods and recipes…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </div>
       <div id="search-results"><div class="hint">Start typing to search</div></div>
     </div>
@@ -1835,6 +1835,7 @@ function openAdd(meal=1){
   if(extAbortCtrl){extAbortCtrl.abort();extAbortCtrl=null;}
   srExternal=[]; extPage=1; extQuery=''; extDone=false; extPageLoading=false; extDedupeKeys=new Set();
   document.getElementById('search-in').value='';
+  document.getElementById('add-scroll').scrollTop = 0;
   renderDefaultSearch(document.getElementById('search-results'));
   openSheet('add-sheet');
 }
@@ -2037,6 +2038,10 @@ function toggleMore(){
   const b=document.getElementById('more-body');
   b.classList.toggle('open');
   document.getElementById('more-ch').textContent=b.classList.contains('open')?'▾':'▸';
+  if(b.classList.contains('open')){
+    const s=document.getElementById('add-scroll');
+    setTimeout(()=>{s.scrollTop=s.scrollHeight;},50);
+  }
 }
 function doCreateFood(){
   const name=document.getElementById('c-name').value.trim();
@@ -3015,7 +3020,7 @@ function drawWeightChart(entries, days, start){
     const lb=yMin+(yMax-yMin)*(i/4);
     const y=yp(lb).toFixed(1);
     parts.push(`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#2a2d3a" stroke-width="1"/>`);
-    parts.push(`<text x="${PL-4}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#8b8fa8" font-size="10" font-family="Inter,sans-serif">${lb.toFixed(0)}</text>`);
+    parts.push(`<text x="${PL-4}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#8b8fa8" font-size="10" font-family="Inter,sans-serif">${lb.toFixed(1)}</text>`);
   }
 
   // X labels
@@ -3087,6 +3092,7 @@ function logWeightEntry(){
     updated_at:now,deleted_at:null,
   });
   toast(existing?'Weight updated':'Weight logged!');
+  wtLogDate = todayStr();
   renderWeightScreen();
 }
 
