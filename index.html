@@ -110,6 +110,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .mw-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .mw-tgt{font-size:13px;color:var(--txt3);font-variant-numeric:tabular-nums;text-align:right;min-width:36px}
 
+/* MACRO STICKY BAR */
+#macro-sticky{position:fixed;left:50%;transform:translateX(-50%);width:min(100vw,430px);z-index:9;background:rgba(15,17,23,.93);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--brd);display:none}
+.ms-bar{display:flex;padding:7px 16px 9px}
+.ms-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.ms-col:not(:last-child){border-right:1px solid var(--brd)}
+.ms-num{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--txt);display:flex;align-items:center;gap:4px;line-height:1.25}
+.ms-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ms-lbl{font-size:10px;color:var(--txt3);font-weight:500}
+
 /* MEALS */
 .meals-section{padding:0 12px}
 .meal-card{background:var(--surf);border-radius:14px;margin-bottom:8px}
@@ -468,6 +477,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
   </div>
   <div class="wth-list" id="wth-list"></div>
 </div>
+
+<!-- MACRO STICKY BAR (position:fixed, populated by updateMacroSticky) -->
+<div id="macro-sticky"></div>
 
 <!-- OVERLAY -->
 <div id="cal-backdrop" onclick="closeAnyCal()"></div>
@@ -1369,6 +1381,27 @@ function renderMacroBars(){
       <div class="mw-stats">${rows}</div>
     </div>
   </div>`;
+  updateMacroSticky();
+}
+
+function updateMacroSticky(){
+  const t=dayTotals();
+  document.getElementById('macro-sticky').innerHTML=`<div class="ms-bar">
+    <div class="ms-col"><div class="ms-num">${r0(t.calories)}</div><div class="ms-lbl">Cal</div></div>
+    <div class="ms-col"><div class="ms-num"><span class="ms-dot" style="background:var(--pro)"></span>${r1(t.protein)}</div><div class="ms-lbl">Protein</div></div>
+    <div class="ms-col"><div class="ms-num"><span class="ms-dot" style="background:var(--cal)"></span>${r1(t.carbs)}</div><div class="ms-lbl">Carbs</div></div>
+    <div class="ms-col"><div class="ms-num"><span class="ms-dot" style="background:#ea6c00"></span>${r1(t.fat)}</div><div class="ms-lbl">Fat</div></div>
+  </div>`;
+}
+
+function initMacroStickyObserver(){
+  const sticky=document.getElementById('macro-sticky');
+  const headerH=document.querySelector('.header').offsetHeight;
+  sticky.style.top=headerH+'px';
+  const obs=new IntersectionObserver(entries=>{
+    sticky.style.display=entries[0].isIntersecting?'none':'block';
+  },{rootMargin:`-${headerH}px 0px 0px 0px`,threshold:0});
+  obs.observe(document.getElementById('macro-bars'));
 }
 
 function renderMeals(){
@@ -4034,6 +4067,7 @@ autoSummarize();
 renderHome();
 initSwipeDismiss();
 initWeightSwipe();
+initMacroStickyObserver();
 syncWithServer();
 </script>
 </body>
