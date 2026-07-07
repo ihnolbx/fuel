@@ -1408,7 +1408,10 @@ function initMacroStickyObserver(){
   const headerH=document.querySelector('.header').offsetHeight;
   sticky.style.top=headerH+'px';
   const obs=new IntersectionObserver(entries=>{
-    sticky.style.display=entries[0].isIntersecting?'none':'block';
+    // Only show the sticky bar on the home screen, and only once the macro
+    // summary has scrolled out of view.
+    const onHome=!document.getElementById('home').classList.contains('hidden');
+    sticky.style.display=(onHome && !entries[0].isIntersecting)?'block':'none';
   },{rootMargin:`-${headerH}px 0px 0px 0px`,threshold:0});
   obs.observe(document.getElementById('macro-bars'));
 }
@@ -2498,6 +2501,8 @@ function confirmAI(){
 const SCREENS = ['home','settings','history','weight','weight-history'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
+  // Sticky macro bar belongs to the home screen only; hide it elsewhere.
+  if (id !== 'home') document.getElementById('macro-sticky').style.display = 'none';
 }
 function gotoSettings(){showScreen('settings');renderSettings();}
 function gotoHome(){showScreen('home');}
@@ -2717,6 +2722,7 @@ function gotoHistory() {
   histCalViewMonth = new Date().getMonth();
   document.getElementById('home').classList.add('hidden');
   document.getElementById('history').classList.remove('hidden');
+  document.getElementById('macro-sticky').style.display = 'none';
   renderHistoryList(allSummaries);
 }
 
