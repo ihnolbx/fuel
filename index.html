@@ -833,7 +833,15 @@ function saveActiveProfile(k){localStorage.setItem(SK.profile,k);}
 function loadDb(){return lsGet(SK.db, INITIAL_FOODS.map(f=>({...f})));}
 function saveDb(db){lsSet(SK.db,db);}
 function loadLog(day){const l=lsGet(SK.log+day,{meal1:[],meal2:[],meal3:[],meal4:[],meal5:[],meal6:[]});if(!l.meal6)l.meal6=[];return l;}
-function saveLog(day,log){lsSet(SK.log+day,log);}
+function saveLog(day,log){lsSet(SK.log+day,log);invalidateWeekSummary(day);}
+// Retroactively editing a day must refresh that week's cached summary, else History
+// shows stale daysWithData/daysLogged/averages for the affected week.
+function invalidateWeekSummary(day){
+  try{
+    const ws=getWeekStart(new Date(day+'T12:00:00'));
+    localStorage.removeItem('fuel_week_'+dateStr(ws));
+  }catch{}
+}
 function loadApiKey(){return localStorage.getItem(SK.apiKey)||'';}
 function saveApiKey(k){localStorage.setItem(SK.apiKey,k);}
 function getMealNames(){return lsGet('fuel_meal_names',{meal1:'Meal #1',meal2:'Meal #2',meal3:'Meal #3',meal4:'Meal #4',meal5:'Meal #5',meal6:'Meal #6'});}
@@ -2672,9 +2680,12 @@ function gotoHistory() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('fuel_week_' + wsStr)); } catch {}
 
-    let s = saved || computeWeekSummary(wsStr);
+    // Prefer live computation so retroactive edits are reflected; fall back to a
+    // saved summary only when the week currently has no log data.
+    const live = computeWeekSummary(wsStr);
+    let s = live || saved;
     if (s) {
-      if (!saved) saveWeeklySummary(s);
+      if (live) saveWeeklySummary(live);
       if (!s.daysWithData) {
         const wsd = new Date(wsStr + 'T12:00:00');
         wsd.setHours(0,0,0,0);
@@ -2763,10 +2774,11 @@ function renderHistCal(){
     <button class="cal-today-link" onclick="clearHistFilter()">Go to today</button>`;
 }
 function loadWeekSummary(wsStr){
-  // Try saved summary, then compute live from log data
-  let s=null;
-  try{s=JSON.parse(localStorage.getItem('fuel_week_'+wsStr));}catch{}
-  if(!s) s=computeWeekSummary(wsStr);
+  // Prefer live computation so retroactive edits are reflected; fall back to a
+  // saved summary only when the week currently has no log data.
+  let s=computeWeekSummary(wsStr);
+  if(s){saveWeeklySummary(s);}
+  else{try{s=JSON.parse(localStorage.getItem('fuel_week_'+wsStr));}catch{}}
   if(!s) return null;
   if(!s.daysWithData){
     const ws=new Date(wsStr+'T12:00:00');
