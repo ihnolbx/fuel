@@ -2897,8 +2897,9 @@ function renderWeekCard(s) {
     const pct = Math.round(ratio * 100);
     // Value color
     const cls = ratio >= 1 ? 'hit' : ratio < 0.9 ? 'miss' : 'near';
-    // Check indicator: protein needs ≥100%; others need 95–105% band
-    const checkHit = m.pro ? ratio >= 1.0 : (ratio >= 0.95 && ratio <= 1.05);
+    // Check indicator: within 10% of target (90–110%) → green check.
+    // Protein has no upper cap — overshooting is fine, so ≥90% counts.
+    const checkHit = m.pro ? ratio >= 0.90 : (ratio >= 0.90 && ratio <= 1.10);
     const check = `<span class="wk-macro-check ${checkHit?'hit':'miss'}">${checkHit?'✓':'✗'}</span>`;
     const displayAvg = m.unit === 'kcal' ? r0(m.avg) : r1(m.avg);
     const displayTgt = m.unit === 'kcal' ? r0(m.tgt) : r0(m.tgt);
