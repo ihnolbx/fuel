@@ -320,6 +320,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .wk-card{background:var(--surf);border-radius:14px;padding:16px;margin-bottom:10px}
 .wk-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px}
 .wk-range{font-size:15px;font-weight:700;color:var(--txt)}
+.wk-current-tag{display:inline-block;margin-left:8px;font-size:10px;font-weight:700;color:var(--pro);background:rgba(34,197,94,.15);padding:2px 8px;border-radius:99px;vertical-align:middle;letter-spacing:.02em}
 .wk-profile-pill{font-size:11px;font-weight:600;color:var(--acc2);background:rgba(139,92,246,.15);padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0}
 .wk-dots{display:flex;justify-content:space-between;margin-bottom:8px}
 .wk-dot-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
@@ -2671,7 +2672,8 @@ function gotoHistory() {
   const p = activeProfile();
   allSummaries = [];
 
-  for (let i = 1; i <= 10; i++) {
+  const curWSStr = dateStr(curWS);
+  for (let i = 0; i <= 10; i++) {
     const ws = new Date(curWS);
     ws.setDate(ws.getDate() - i * 7);
     const wsStr = dateStr(ws);
@@ -2706,6 +2708,7 @@ function gotoHistory() {
         profileName: p.name, empty: true,
       };
     }
+    s.isCurrent = (wsStr === curWSStr);
     allSummaries.push(s);
   }
 
@@ -2861,6 +2864,9 @@ function renderWeekCard(s) {
   const rangeStr = sameYear
     ? `${formatDateShort(s.weekStart)} – ${formatDateFull(s.weekEnd)}`
     : `${formatDateFull(s.weekStart)} – ${formatDateFull(s.weekEnd)}`;
+  const rangeHtml = s.isCurrent
+    ? `<div class="wk-range">${rangeStr}<span class="wk-current-tag">This week</span></div>`
+    : `<div class="wk-range">${rangeStr}</div>`;
 
   const DAY_LABELS = ['S','M','T','W','T','F','S'];
   const dwd = s.daysWithData || new Array(7).fill(false);
@@ -2871,7 +2877,7 @@ function renderWeekCard(s) {
   if (s.empty) {
     return `<div class="wk-card wk-card-empty">
     <div class="wk-card-head">
-      <div class="wk-range">${rangeStr}</div>
+      ${rangeHtml}
       <div class="wk-profile-pill">${esc(s.profileName)}</div>
     </div>
     <div class="wk-dots">${dotsHtml}</div>
@@ -2903,7 +2909,7 @@ function renderWeekCard(s) {
 
   return `<div class="wk-card">
     <div class="wk-card-head">
-      <div class="wk-range">${rangeStr}</div>
+      ${rangeHtml}
       <div class="wk-profile-pill">${esc(s.profileName)}</div>
     </div>
     <div class="wk-dots">${dotsHtml}</div>
