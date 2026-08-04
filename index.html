@@ -3496,7 +3496,10 @@ function doCopyMeal(){
     }
     saveLog(ds,dl);
   }
-  if([...cpDestDates].includes(viewDate)) log=loadLog(viewDate);
+  // Jump to the copied-to day (earliest, if several) so the result is visible.
+  const destDates = [...cpDestDates].sort();
+  viewDate = destDates[0];
+  log = loadLog(viewDate);
   closeModal('cp-modal');
   renderHome();
   const n = cpDestDates.size;
