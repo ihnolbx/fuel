@@ -3058,10 +3058,13 @@ function drawWeightChart(entries, days, start){
 
   let yMin, yMax;
   if(entries.length){
+    // Center the axis on the visible average: ±5 lb for week/month, ±8 lb for year.
+    // Expand the window if any point would fall outside it, so nothing clips.
+    const avg = entries.reduce((s,e)=>s+e.lb,0)/entries.length;
+    const pad = wtTab==='year' ? 8 : 5;
     const allLb=entries.map(e=>e.lb);
-    const minLb=Math.min(...allLb), maxLb=Math.max(...allLb);
-    const span=Math.max(maxLb-minLb,2);
-    yMin=minLb-span*0.18; yMax=maxLb+span*0.18;
+    yMin=Math.min(avg-pad, ...allLb);
+    yMax=Math.max(avg+pad, ...allLb);
   } else {
     yMin=110; yMax=140;
   }
