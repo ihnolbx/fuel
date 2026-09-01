@@ -1761,14 +1761,18 @@ function setEditUnit(unit){
 
 function saveEditEntry(){
   if(!editEntry||!editFood||editQty<=0) return;
+  const now = Date.now();
   const newServings = svCalcServings(editQty, editUnit, editFood);
   editEntry.servings  = r1(newServings);
   editEntry.protein   = r1(editFood.protein  * newServings);
   editEntry.carbs     = r1(editFood.carbs     * newServings);
   editEntry.fat       = r1(editFood.fat       * newServings);
   editEntry.calories  = r1(calcCal(editEntry.protein, editEntry.carbs, editEntry.fat));
+  // Stamp the local row with the SAME clock we push, so a stale server row
+  // arriving afterwards loses the LWW comparison in applyServerLogEntries.
+  editEntry.updated_at = now;
   saveLog(viewDate, log);
-  queueForSync('log_entries',entryToSyncRow(editEntry,editMeal,viewDate,Date.now(),false));
+  queueForSync('log_entries',entryToSyncRow(editEntry,editMeal,viewDate,now,false));
   closeSheet('edit-sheet');
   renderHome();
 }
@@ -1806,6 +1810,7 @@ function addToLog(food,qty,mealNum){
     protein:r1(food.protein*qty),
     carbs:r1(food.carbs*qty),
     fat:r1(food.fat*qty),
+    updated_at:now,
   };
   const mk=`meal${mealNum}`;
   if(!log[mk])log[mk]=[];
@@ -3735,7 +3740,7 @@ function doCopyMeal(){
     const dl = loadLog(ds);
     for(const [mk,items] of Object.entries(toCopy)){
       const mealNum=parseInt(mk.replace('meal',''),10);
-      dl[mk] = items.map(e=>({...e,id:uid()}));
+      dl[mk] = items.map(e=>({...e,id:uid(),updated_at:cpNow}));
       dl[mk].forEach(e=>queueForSync('log_entries',entryToSyncRow(e,mealNum,ds,cpNow,false)));
     }
     saveLog(ds,dl);
@@ -4324,7 +4329,18 @@ async function syncWithServer() {
 
   applyServerChanges(data.changes || {});
   if (typeof data.cursor === 'number') localStorage.setItem('fuel_sync_cursor', String(data.cursor));
-  lsSet('fuel_sync_pending', { foods: [], log_entries: [], weight_entries: [], settings: [] });
+  // Retire only the rows we actually sent. Anything queued while the request was
+  // in flight (same id, newer updated_at) must survive to be retried next sync.
+  const sent = {};
+  for (const [t, rows] of Object.entries(changes)) sent[t] = new Map(rows.map(r => [r.id, r.updated_at]));
+  const stillPending = lsGet('fuel_sync_pending', {});
+  for (const t of ['foods', 'log_entries', 'weight_entries', 'settings']) {
+    if (!stillPending[t]) stillPending[t] = [];
+    const sentMap = sent[t];
+    if (!sentMap) continue;
+    stillPending[t] = stillPending[t].filter(r => !(sentMap.has(r.id) && sentMap.get(r.id) === r.updated_at));
+  }
+  lsSet('fuel_sync_pending', stillPending);
 
   _syncInFlight = false;
   setSyncStatus('ok');
