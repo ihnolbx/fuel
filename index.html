@@ -290,6 +290,23 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
 .btn-outline:active{opacity:.8}
 .btn-danger{background:#ef4444;color:#fff}
 .btn-danger:active{opacity:.85}
+#foods{padding:16px;padding-bottom:40px}
+.fl-search{margin-bottom:12px}
+.fl-count{font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
+.fl-item{display:flex;align-items:center;gap:10px;background:var(--surf);border-radius:12px;padding:12px 13px;margin-bottom:8px}
+.fl-info{flex:1;min-width:0}
+.fl-name{font-size:14px;font-weight:600;color:var(--txt);word-break:break-word}
+.fl-meta{font-size:11px;color:var(--txt3);margin-top:3px}
+.fl-serv{font-size:11px;color:var(--txt2);margin-top:2px}
+.fl-act{width:34px;height:34px;border-radius:9px;background:var(--surf2);border:1px solid var(--brd);color:var(--txt2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0}
+.fl-act:active{opacity:.7}
+.fl-act.del{color:var(--red)}
+.fl-warn{font-size:12px;color:var(--txt2);line-height:1.6;background:var(--surf2);border-radius:12px;padding:13px;margin-bottom:16px}
+.fl-diff{font-size:13px;color:var(--txt2);line-height:1.8;background:var(--surf2);border-radius:12px;padding:13px;margin-bottom:14px}
+.fl-diff b{color:var(--txt);font-weight:600}
+.fl-diff .old{color:var(--txt3);text-decoration:line-through}
+.fl-diff .new{color:var(--pro);font-weight:600}
+#fl-confirm-sheet{z-index:130}
 
 /* TOAST */
 .toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--surf2);color:var(--txt);padding:9px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:all .25s;z-index:300;white-space:nowrap;max-width:90%;text-align:center}
@@ -413,6 +430,16 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
     <div class="settings-title">Settings</div>
   </div>
   <div id="settings-body"></div>
+</div>
+
+<!-- FOOD LIBRARY -->
+<div id="foods" class="screen hidden">
+  <div class="settings-head">
+    <button class="back-btn" onclick="gotoSettings()">←</button>
+    <div class="settings-title">Food Library</div>
+  </div>
+  <input class="fi fl-search" id="fl-search" type="text" placeholder="Filter foods…" autocomplete="off" oninput="renderFoodLibrary()">
+  <div id="fl-list"></div>
 </div>
 
 <!-- HISTORY -->
@@ -642,6 +669,45 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,-apple-
   <div class="modal-body" id="cp-body"></div>
 </div>
 
+<!-- Edit Food modal -->
+<div class="modal" id="fe-modal">
+  <div class="sheet-handle"></div>
+  <div class="modal-head">
+    <button class="sheet-x" onclick="closeModal('fe-modal')">✕</button>
+    <span class="modal-title">Edit Food</span>
+    <button class="modal-action" onclick="reviewFoodEdit()">Save</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">Name *</label><input class="fi" id="fe-name" type="text" placeholder="Food name"></div>
+    <div class="row2">
+      <div class="fg"><label class="fl">Serving Size</label><input class="fi" id="fe-size" type="number" placeholder="1" min="0.01" step="any" inputmode="decimal"></div>
+      <div class="fg"><label class="fl">Unit</label><input class="fi" id="fe-unit" type="text" placeholder="g, oz, cup…"></div>
+    </div>
+    <div class="row4">
+      <div class="fg"><label class="fl">Cal</label><input class="fi" id="fe-cal" type="number" placeholder="0" min="0" inputmode="decimal"></div>
+      <div class="fg"><label class="fl" style="color:var(--pro)">Pro g</label><input class="fi" id="fe-pro" type="number" placeholder="0" min="0" inputmode="decimal"></div>
+      <div class="fg"><label class="fl" style="color:var(--carb)">Carb g</label><input class="fi" id="fe-carb" type="number" placeholder="0" min="0" inputmode="decimal"></div>
+      <div class="fg"><label class="fl" style="color:var(--fat)">Fat g</label><input class="fi" id="fe-fat" type="number" placeholder="0" min="0" inputmode="decimal"></div>
+    </div>
+    <div class="fg"><label class="fl">Cal <span class="m-badge">M</span></label><input class="fi" id="fe-cal-m" type="number" placeholder="0" min="0" readonly tabindex="-1"></div>
+    <div id="fe-unit-note" class="fl-warn"></div>
+  </div>
+</div>
+
+<!-- Food edit/delete confirm -->
+<div class="sheet" id="fl-confirm-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-title" id="fl-confirm-title">Confirm</div>
+    <button class="sheet-x" onclick="closeSheet('fl-confirm-sheet')">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div id="fl-confirm-body"></div>
+    <button class="btn btn-p" id="fl-confirm-btn" style="margin-bottom:10px" onclick="applyFoodAction()">Confirm</button>
+    <button class="btn btn-outline" onclick="closeSheet('fl-confirm-sheet')">Cancel</button>
+  </div>
+</div>
+
 <!-- IMPORT CONFIRM SHEET -->
 <div class="sheet" id="import-confirm-sheet">
   <div class="sheet-handle"></div>
@@ -833,6 +899,11 @@ function loadActiveProfile(){return localStorage.getItem(SK.profile)||'bulk';}
 function saveActiveProfile(k){localStorage.setItem(SK.profile,k);}
 function loadDb(){return lsGet(SK.db, INITIAL_FOODS.map(f=>({...f})));}
 function saveDb(db){lsSet(SK.db,db);}
+// Deleted foods are RETAINED locally as tombstones (deleted_at set) rather than
+// spliced out: the tombstone is what carries the deletion through LWW sync, and
+// buildCombinedFoods needs it to suppress log-derived "Recent" suggestions.
+// Everything that browses/searches foods must go through activeFoods().
+function activeFoods(){return db.filter(f=>!f.deleted_at);}
 function loadLog(day){const l=lsGet(SK.log+day,{meal1:[],meal2:[],meal3:[],meal4:[],meal5:[],meal6:[]});if(!l.meal6)l.meal6=[];return l;}
 function saveLog(day,log){lsSet(SK.log+day,log);invalidateWeekSummary(day);}
 // Retroactively editing a day must refresh that week's cached summary, else History
@@ -1204,8 +1275,16 @@ async function fetchExternalPage(q,signal,page){
 
 function buildCombinedFoods() {
   const lastUsed = lsGet('fuel_last_used', {});
-  const dbByName = new Map(db.map(f => [f.name.toLowerCase().trim(), f]));
-  const dbById   = new Map(db.map(f => [f.id, f]));
+  const live     = activeFoods();
+  const dbByName = new Map(live.map(f => [f.name.toLowerCase().trim(), f]));
+  const dbById   = new Map(live.map(f => [f.id, f]));
+  // Tombstoned foods must not reappear through the log-derived "Recent" pass.
+  const delById = new Set(), delByName = new Set();
+  for (const f of db) {
+    if (!f.deleted_at) continue;
+    delById.add(f.id);
+    delByName.add((f.name || '').toLowerCase().trim());
+  }
 
   // Scan all log days; keep the most-recent log entry per food name
   const recentByName = {};
@@ -1221,6 +1300,8 @@ function buildCombinedFoods() {
         if (!nameKey) return;
         if (recentByName[nameKey] && date <= recentByName[nameKey].date) return;
         const dbMatch = dbByName.get(nameKey) || (e.foodId ? dbById.get(e.foodId) : null);
+        // Deleted, and not superseded by a live food of the same name/id → drop.
+        if (!dbMatch && ((e.foodId && delById.has(e.foodId)) || delByName.has(nameKey))) return;
         const qty = e.servings > 0 ? e.servings : 1;
         recentByName[nameKey] = {
           food: dbMatch
@@ -1245,7 +1326,7 @@ function buildCombinedFoods() {
 
   const loggedNameKeys = new Set(Object.keys(recentByName));
 
-  const dbFoods = db
+  const dbFoods = live
     .filter(f => !loggedNameKeys.has(f.name.toLowerCase().trim()))
     .map((f,idx) => ({...f, source:'saved', _recencyTs:lastUsed[f.id]||'', _idx:idx}))
     .sort((a,b) => {
@@ -1482,6 +1563,11 @@ function renderSettings(){
       <button class="btn btn-p" onclick="manualWeekSummary()" style="margin-top:0">Generate Week Summary</button>
       <div id="week-summary-status" style="font-size:12px;color:var(--txt3);margin-top:8px;text-align:center"></div>
     </div>
+    <div class="sec-title">Food Library</div>
+    <div class="prof-card">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:14px">Edit or delete foods you've saved. Past log entries keep the macros they were logged with and are never changed.</div>
+      <button class="btn btn-outline" style="margin-top:0" onclick="gotoFoodLibrary()">Open Food Library</button>
+    </div>
     <div class="sec-title">Data Backup</div>
     <div class="prof-card">
       <div style="font-size:13px;color:var(--txt2);margin-bottom:14px">Export all your food logs, custom foods, favorites, and weekly summaries to an Excel file. Import a backup to restore or merge data.</div>
@@ -1696,11 +1782,13 @@ function deleteEditEntry(){
 function addToLog(food,qty,mealNum){
   const now=Date.now();
   // Auto-save external foods to personal db on first log
-  if((food.source==='usda'||food.source==='off')&&!db.find(f=>f.id===food.id)){
+  if((food.source==='usda'||food.source==='off')&&!activeFoods().find(f=>f.id===food.id)){
     const autoSaved={id:food.id,type:'food',name:food.name,brand:food.brand,
       servingSize:food.servingSize,servingUnit:food.servingUnit,
       calories:food.calories,protein:food.protein,carbs:food.carbs,fat:food.fat};
-    db.push(autoSaved);
+    // Re-logging a previously deleted database food revives its tombstone.
+    const tomb=db.findIndex(f=>f.id===food.id);
+    if(tomb>=0) db[tomb]=autoSaved; else db.push(autoSaved);
     saveDb(db);
     combinedFoodsCache=null;
     queueForSync('foods',foodToSyncRow(autoSaved,now));
@@ -2110,6 +2198,156 @@ function doCreateFood(){
     .forEach(id=>document.getElementById(id).value='');
 }
 
+// ─── FOOD LIBRARY (edit / delete saved foods) ────────────────────────────────
+// Edits and deletes ride the SAME LWW path as every other table: mutate the
+// local row, bump updated_at (plus deleted_at for a delete), then
+// queueForSync('foods', foodToSyncRow(...)). No bespoke mechanism.
+// Log entries snapshot their macros at log time, so neither action rewrites history.
+let flPending = null;   // {mode:'edit'|'delete', id, next?}
+let feEditId  = null;
+
+function renderFoodLibrary(){
+  const q = (document.getElementById('fl-search')?.value || '').toLowerCase().trim();
+  const list = activeFoods()
+    .filter(f => !q || (f.name||'').toLowerCase().includes(q) || (f.brand||'').toLowerCase().includes(q))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const el = document.getElementById('fl-list');
+  if(!list.length){
+    el.innerHTML = `<div class="hint">${q?'No foods match that filter.':'No saved foods yet.'}</div>`;
+    return;
+  }
+  el.innerHTML =
+    `<div class="fl-count">${list.length} food${list.length===1?'':'s'}</div>`+
+    list.map(f=>{
+      const showBrand = f.brand && !(f.name||'').toLowerCase().includes(f.brand.toLowerCase());
+      return `<div class="fl-item">`+
+        `<div class="fl-info">`+
+          `<div class="fl-name">${esc(f.name)}</div>`+
+          `<div class="fl-meta">${showBrand?esc(f.brand)+' · ':''}${r0(f.calories||0)} Cal · ${r1(f.protein||0)}p · ${r1(f.carbs||0)}c · ${r1(f.fat||0)}f</div>`+
+          `<div class="fl-serv">1 serving = ${fmtQty(f.servingSize||1)} ${esc(f.servingUnit||'serving')}</div>`+
+        `</div>`+
+        `<button class="fl-act" onclick="openFoodEdit('${esc(f.id)}')" title="Edit" aria-label="Edit ${esc(f.name)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`+
+        `<button class="fl-act del" onclick="confirmFoodDelete('${esc(f.id)}')" title="Delete" aria-label="Delete ${esc(f.name)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>`+
+      `</div>`;
+    }).join('');
+}
+
+// Preview how the entered unit will be classified. Detection is by the units the
+// food offers (svUnitOptions / the g+oz rule) — never by the food's origin — so a
+// corrected unit is read exactly like a correctly-entered one.
+function updateFeUnitNote(){
+  const el = document.getElementById('fe-unit-note');
+  if(!el) return;
+  const unit  = document.getElementById('fe-unit').value.trim() || 'serving';
+  const size  = parseFloat(document.getElementById('fe-size').value) || 1;
+  const probe = {servingSize:size, servingUnit:unit};
+  const opts  = svUnitOptions(probe);
+  if(opts === null){
+    el.innerHTML = `<b>${esc(unit)}</b> is treated as a custom unit — it stays the only unit offered when logging.`;
+  } else if(svServingStripped(probe)){
+    el.innerHTML = `<b>${esc(unit)}</b> is measured by weight — logging will offer <b>${esc(opts.join(' / '))}</b> and drop “serving”.`;
+  } else {
+    el.innerHTML = `<b>${esc(unit)}</b> — logging will offer <b>${esc(opts.join(' / '))}</b>.`;
+  }
+}
+
+function openFoodEdit(id){
+  const f = db.find(x => x.id===id && !x.deleted_at);
+  if(!f) return;
+  feEditId = id;
+  flPending = null;
+  document.getElementById('fe-name').value = f.name || '';
+  document.getElementById('fe-size').value = f.servingSize ?? 1;
+  document.getElementById('fe-unit').value = f.servingUnit || '';
+  document.getElementById('fe-pro').value  = r1(f.protein ?? 0);
+  document.getElementById('fe-carb').value = r1(f.carbs ?? 0);
+  document.getElementById('fe-fat').value  = r1(f.fat ?? 0);
+  document.getElementById('fe-cal').value  = r1(f.calories ?? 0);
+  updateCalField('fe-pro','fe-carb','fe-fat','fe-cal-m');
+  updateFeUnitNote();
+  openModal('fe-modal');
+}
+
+function reviewFoodEdit(){
+  const f = db.find(x => x.id===feEditId && !x.deleted_at);
+  if(!f) return;
+  const name = document.getElementById('fe-name').value.trim();
+  if(!name){toast('Name is required');return;}
+  const size  = parseFloat(document.getElementById('fe-size').value);
+  const pro   = parseFloat(document.getElementById('fe-pro').value)  || 0;
+  const carb  = parseFloat(document.getElementById('fe-carb').value) || 0;
+  const fat   = parseFloat(document.getElementById('fe-fat').value)  || 0;
+  const calIn = parseFloat(document.getElementById('fe-cal').value);
+  const next  = {
+    name,
+    servingSize: size > 0 ? size : 1,
+    servingUnit: document.getElementById('fe-unit').value.trim() || 'serving',
+    protein: pro, carbs: carb, fat,
+    calories: r1(isNaN(calIn) ? calcCal(pro,carb,fat) : calIn),
+  };
+  const changes = [
+    ['Name',     f.name,                                                        next.name],
+    ['Serving',  `${fmtQty(f.servingSize||1)} ${f.servingUnit||'serving'}`,     `${fmtQty(next.servingSize)} ${next.servingUnit}`],
+    ['Calories', r1(f.calories||0),                                             next.calories],
+    ['Protein',  r1(f.protein||0),                                              r1(next.protein)],
+    ['Carbs',    r1(f.carbs||0),                                                r1(next.carbs)],
+    ['Fat',      r1(f.fat||0),                                                  r1(next.fat)],
+  ].filter(([,a,b]) => String(a) !== String(b));
+  if(!changes.length){toast('No changes to save');return;}
+  flPending = {mode:'edit', id:f.id, next};
+  document.getElementById('fl-confirm-title').textContent = 'Save changes?';
+  document.getElementById('fl-confirm-body').innerHTML =
+    `<div class="fl-diff">`+
+      changes.map(([lbl,a,b])=>`<div><b>${lbl}:</b> <span class="old">${esc(String(a))}</span> → <span class="new">${esc(String(b))}</span></div>`).join('')+
+    `</div>`+
+    `<div class="fl-warn">Updates this food going forward. Log entries already recorded keep the macros they were logged with.</div>`;
+  const btn = document.getElementById('fl-confirm-btn');
+  btn.className   = 'btn btn-p';
+  btn.textContent = 'Save Changes';
+  openSheet('fl-confirm-sheet');
+}
+
+function confirmFoodDelete(id){
+  const f = db.find(x => x.id===id && !x.deleted_at);
+  if(!f) return;
+  flPending = {mode:'delete', id};
+  document.getElementById('fl-confirm-title').textContent = 'Delete food?';
+  document.getElementById('fl-confirm-body').innerHTML =
+    `<div class="fl-diff"><b>${esc(f.name)}</b><br>${r0(f.calories||0)} Cal · ${r1(f.protein||0)}p · ${r1(f.carbs||0)}c · ${r1(f.fat||0)}f</div>`+
+    `<div class="fl-warn">It will stop appearing in search and suggestions on all your devices. Log entries already recorded are not changed.</div>`;
+  const btn = document.getElementById('fl-confirm-btn');
+  btn.className   = 'btn btn-danger';
+  btn.textContent = 'Delete Food';
+  openSheet('fl-confirm-sheet');
+}
+
+function applyFoodAction(){
+  if(!flPending) return;
+  const idx = db.findIndex(x => x.id===flPending.id && !x.deleted_at);
+  if(idx < 0){ flPending=null; closeSheet('fl-confirm-sheet'); return; }
+  const now  = Date.now();
+  const food = db[idx];
+  if(flPending.mode === 'edit') Object.assign(food, flPending.next);
+  else                          food.deleted_at = now;
+  food.updated_at = now;
+  saveDb(db);
+  combinedFoodsCache = null;
+  queueForSync('foods', foodToSyncRow(food, now));
+  const msg = flPending.mode==='edit' ? `Updated ${food.name}` : `Deleted ${food.name}`;
+  flPending = null;
+  closeSheet('fl-confirm-sheet');
+  closeModal('fe-modal');
+  renderFoodLibrary();
+  toast(msg);
+}
+
+['fe-pro','fe-carb','fe-fat'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>updateCalField('fe-pro','fe-carb','fe-fat','fe-cal-m'));
+});
+['fe-unit','fe-size'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',updateFeUnitNote);
+});
+
 // ─── SERVING SHEET ───────────────────────────────────────────────────────────
 
 // Unit conversion tables
@@ -2373,7 +2611,7 @@ async function submitDict(){
 }
 
 function sysPrompt(){
-  const compact=db.map(f=>({id:f.id,n:f.name,b:f.brand||'',ss:f.servingSize,su:f.servingUnit,cal:f.calories,pro:f.protein,carb:f.carbs,fat:f.fat}));
+  const compact=activeFoods().map(f=>({id:f.id,n:f.name,b:f.brand||'',ss:f.servingSize,su:f.servingUnit,cal:f.calories,pro:f.protein,carb:f.carbs,fat:f.fat}));
   return `You are a food logging assistant for the Fuel nutrition app.
 
 Parse the user's natural language food description and return a JSON array matching items to the database when possible, otherwise estimate.
@@ -2434,7 +2672,7 @@ function renderAIConfirm(){
   const el=document.getElementById('aic-items');
   if(!aiItems.length){el.innerHTML='<div class="hint">No items parsed</div>';return;}
   el.innerHTML=aiItems.map((item,idx)=>{
-    const matched=item.matchedId?db.find(f=>f.id===item.matchedId):null;
+    const matched=item.matchedId?activeFoods().find(f=>f.id===item.matchedId):null;
     return `<div class="ai-item">
       <div class="ai-item-head">
         <div>
@@ -2498,7 +2736,7 @@ function confirmAI(){
 }
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
-const SCREENS = ['home','settings','history','weight','weight-history'];
+const SCREENS = ['home','settings','history','weight','weight-history','foods'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
   // Sticky macro bar belongs to the home screen only; hide it elsewhere.
@@ -2506,6 +2744,7 @@ function showScreen(id) {
 }
 function gotoSettings(){showScreen('settings');renderSettings();}
 function gotoHome(){showScreen('home');}
+function gotoFoodLibrary(){showScreen('foods');document.getElementById('fl-search').value='';renderFoodLibrary();}
 function updateProf(k,field,v){
   const n=parseFloat(v);
   if(!isNaN(n)&&n>=0){
@@ -3628,7 +3867,7 @@ function exportToExcel(){
 
   // Tab 2: Custom Foods
   const foodRows=[['Name','Brand','Serving Size','Serving Unit','Calories','Protein (g)','Carbs (g)','Fat (g)','Saturated Fat (g)','Fiber (g)','Sugar (g)','Sodium (mg)','Cholesterol (mg)']];
-  for(const f of loadDb()){
+  for(const f of loadDb().filter(x=>!x.deleted_at)){
     foodRows.push([f.name||'',f.brand||'',f.servingSize||1,f.servingUnit||'serving',f.calories||0,f.protein||0,f.carbs||0,f.fat||0,f.saturatedFat??'',f.fiber??'',f.sugar??'',f.sodium??'',f.cholesterol??'']);
   }
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(foodRows),'Custom Foods');
@@ -3817,7 +4056,7 @@ function performImport(mode){
   let foodCount=0;
   const currentDb=mode==='replace'?[]:loadDb();
   for(const f of d.customFoods){
-    if(mode==='merge'&&currentDb.some(e=>e.name.toLowerCase()===f.name.toLowerCase()))continue;
+    if(mode==='merge'&&currentDb.some(e=>!e.deleted_at&&e.name.toLowerCase()===f.name.toLowerCase()))continue;
     currentDb.push({...f,id:uid()});
     foodCount++;
   }
@@ -3913,7 +4152,7 @@ function foodToSyncRow(food, updatedAt) {
     sodium:       food.sodium ?? null,
     cholesterol:  food.cholesterol ?? null,
     updated_at:   updatedAt,
-    deleted_at:   null,
+    deleted_at:   food.deleted_at ?? null,
   };
 }
 
@@ -3946,21 +4185,19 @@ function applyServerFoods(rows) {
     const idx = db.findIndex(f => f.id === row.id);
     const existing = idx >= 0 ? db[idx] : null;
     if (row.updated_at < (existing?.updated_at || 0)) continue;
-    if (row.deleted_at) {
-      if (idx >= 0) { db.splice(idx, 1); changed = true; }
-    } else {
-      const f = {
-        id: row.id, name: row.name, brand: row.brand || '',
-        source: row.source, external_id: row.external_id,
-        servingSize: row.serving_qty, servingUnit: row.serving_unit,
-        calories: row.kcal, protein: row.protein, carbs: row.carbs, fat: row.fat,
-        saturatedFat: row.sat_fat, fiber: row.fiber, sugar: row.sugar,
-        sodium: row.sodium, cholesterol: row.cholesterol,
-        updated_at: row.updated_at,
-      };
-      if (idx >= 0) db[idx] = f; else db.push(f);
-      changed = true;
-    }
+    const f = {
+      id: row.id, name: row.name, brand: row.brand || '',
+      source: row.source, external_id: row.external_id,
+      servingSize: row.serving_qty, servingUnit: row.serving_unit,
+      calories: row.kcal, protein: row.protein, carbs: row.carbs, fat: row.fat,
+      saturatedFat: row.sat_fat, fiber: row.fiber, sugar: row.sugar,
+      sodium: row.sodium, cholesterol: row.cholesterol,
+      updated_at: row.updated_at,
+    };
+    // Keep the row as a local tombstone instead of splicing it out.
+    if (row.deleted_at) f.deleted_at = row.deleted_at;
+    if (idx >= 0) db[idx] = f; else db.push(f);
+    changed = true;
   }
   if (changed) { saveDb(db); combinedFoodsCache = null; }
 }
