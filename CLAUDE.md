@@ -24,7 +24,13 @@ Personal nutrition + weight tracking app. Single-file build.
 ### Food units (non-obvious — implemented the hard way)
 - For foods that offer **gram AND ounce** units (database/USDA/Open Food Facts foods), the "serving" option is removed from the unit dropdown, and the "1 serving = 1 g" descriptor line is omitted. Default unit falls back to `g`.
 - **Detect this by the presence of g/oz options — NOT by trying to classify the food's origin (custom vs database).** Origin-based detection was attempted repeatedly and kept failing; the g/oz-presence rule is the robust one.
+- That warning is scoped to **unit detection only**. Origin detection is correct where the question genuinely *is* origin — e.g. whether a food has a revive path (USDA/OFF only, via the stable `usda_`/`off_` id). Read origin from the id prefix, as `exportToExcel` does. Never reintroduce it for units.
 - Custom foods use arbitrary units (e.g. "burger", "piece", "serving"). Those are correct and are the only valid unit for that food — leave them completely untouched.
+
+### Sync (LWW)
+- Any code path that creates or modifies a synced row (log entries, foods, weights, settings) **must stamp `updated_at` on the local row at write time**, using the same clock passed to the sync row.
+- Omitting it makes the local row compare as `0` and lose against *any* server row however stale, which silently reverts the local edit on the next pull. This was the root cause of the copy-then-edit revert bug (`132d3da`).
+- `syncWithServer` retires only the rows it actually sent (matched on id + `updated_at`), so edits queued mid-flight survive to retry — don't blank the pending queue.
 
 ### Meals
 - Up to 6 meal slots per day.
