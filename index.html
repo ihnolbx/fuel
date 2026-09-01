@@ -2311,10 +2311,15 @@ function confirmFoodDelete(id){
   const f = db.find(x => x.id===id && !x.deleted_at);
   if(!f) return;
   flPending = {mode:'delete', id};
+  // USDA / Open Food Facts foods keep a way back: re-searching the database and
+  // logging the same entry revives the tombstone (addToLog matches on the stable
+  // usda_/off_ id). Hand-created foods have no such path, so flag it as final.
+  // Origin is read from the id prefix, matching how exportToExcel labels sources.
+  const revivable = /^(usda_|off_)/.test(f.id || '');
   document.getElementById('fl-confirm-title').textContent = 'Delete food?';
   document.getElementById('fl-confirm-body').innerHTML =
     `<div class="fl-diff"><b>${esc(f.name)}</b><br>${r0(f.calories||0)} Cal · ${r1(f.protein||0)}p · ${r1(f.carbs||0)}c · ${r1(f.fat||0)}f</div>`+
-    `<div class="fl-warn">It will stop appearing in search and suggestions on all your devices. Log entries already recorded are not changed.</div>`;
+    `<div class="fl-warn">It will stop appearing in search and suggestions on all your devices. Log entries already recorded are not changed.${revivable?'':' This can’t be undone — you’ll need to re-create it if you change your mind.'}</div>`;
   const btn = document.getElementById('fl-confirm-btn');
   btn.className   = 'btn btn-danger';
   btn.textContent = 'Delete Food';
